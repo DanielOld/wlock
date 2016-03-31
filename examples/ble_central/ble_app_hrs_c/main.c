@@ -118,8 +118,11 @@ static const ble_gap_conn_params_t m_connection_param =
     (uint16_t)SUPERVISION_TIMEOUT        // Supervision time-out
 };
 
+#if !defined(__SUPPORT_WLOCK__)
 static void scan_start(void);
-
+#else
+void scan_start(void);
+#endif
 #define APPL_LOG                        app_trace_log             /**< Debug logger macro that will be used in this file to do logging of debug information over UART. */
 
 
@@ -311,7 +314,11 @@ static uint32_t adv_report_parse(uint8_t type, data_t * p_advdata, data_t * p_ty
  *
  * @note This function will not return.
  */
+#if !defined(__SUPPORT_WLOCK__)
 static void sleep_mode_enter(void)
+#else
+void sleep_mode_enter(void)
+#endif
 {
     uint32_t err_code = bsp_indication_set(BSP_INDICATE_IDLE);
     APP_ERROR_CHECK(err_code);
@@ -735,7 +742,11 @@ static void db_discovery_init(void)
 
 /**@brief Function to start scanning.
  */
+#if !defined(__SUPPORT_WLOCK__)
 static void scan_start(void)
+#else
+void scan_start(void)
+#endif
 {
     ble_gap_whitelist_t   whitelist;
     ble_gap_addr_t      * p_whitelist_addr[BLE_GAP_WHITELIST_ADDR_MAX_COUNT];
@@ -863,12 +874,15 @@ int main(void)
     APP_TIMER_INIT(APP_TIMER_PRESCALER, APP_TIMER_OP_QUEUE_SIZE, NULL);
 #if !defined(__SUPPORT_WLOCK__)
     buttons_leds_init(&erase_bonds);
-    uart_init();
+    //uart_init();
     printf("Heart rate collector example\r\n");
 #endif
-    ble_stack_init();
     device_manager_init(erase_bonds);
-	wlock_init();
+    
+#if defined(__SUPPORT_WLOCK__)
+    wlock_init();
+#endif
+    ble_stack_init();
     db_discovery_init();
     hrs_c_init();
 #if !defined(__SUPPORT_WLOCK__)
