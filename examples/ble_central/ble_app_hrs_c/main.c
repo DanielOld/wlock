@@ -30,19 +30,17 @@
 #include "device_manager.h"
 #include "app_trace.h"
 #include "ble_hrs_c.h"
-#include "ble_bas_c.h"
+//#include "ble_bas_c.h"
 #include "app_util.h"
 #include "app_timer.h"
 #include "bsp.h"
-#include "bsp_btn_ble.h"
-#if defined(__SUPPORT_WLOCK__)
+//#include "bsp_btn_ble.h"
+#ifdef __SUPPORT_WLOCK__
 #include "wlock.h"
 #endif
 
-#if !defined(__SUPPORT_WLOCK__)
 #define UART_TX_BUF_SIZE           256                                /**< UART TX buffer size. */
 #define UART_RX_BUF_SIZE           1                                  /**< UART RX buffer size. */
-#endif
 
 #define STRING_BUFFER_LEN          50
 #define BOND_DELETE_ALL_BUTTON_ID  0                                  /**< Button used for deleting all bonded centrals during startup. */
@@ -61,6 +59,9 @@
 
 #define SCAN_INTERVAL              0x00A0                             /**< Determines scan interval in units of 0.625 millisecond. */
 #define SCAN_WINDOW                0x0050                             /**< Determines scan window in units of 0.625 millisecond. */
+#ifdef __SUPPORT_WLOCK__
+#define SCAN_TIMEOUT               5 /* sec */  
+#endif
 
 #define MIN_CONNECTION_INTERVAL    MSEC_TO_UNITS(7.5, UNIT_1_25_MS)   /**< Determines minimum connection interval in millisecond. */
 #define MAX_CONNECTION_INTERVAL    MSEC_TO_UNITS(30, UNIT_1_25_MS)    /**< Determines maximum connection interval in millisecond. */
@@ -96,13 +97,13 @@ typedef enum
 
 static ble_db_discovery_t           m_ble_db_discovery;                  /**< Structure used to identify the DB Discovery module. */
 static ble_hrs_c_t                  m_ble_hrs_c;                         /**< Structure used to identify the heart rate client module. */
-static ble_bas_c_t                  m_ble_bas_c;                         /**< Structure used to identify the Battery Service client module. */
+//static ble_bas_c_t                  m_ble_bas_c;                         /**< Structure used to identify the Battery Service client module. */
 static ble_gap_scan_params_t        m_scan_param;                        /**< Scan parameters requested for scanning and connection. */
 static dm_application_instance_t    m_dm_app_id;                         /**< Application identifier. */
 static dm_handle_t                  m_dm_device_handle;                  /**< Device Identifier identifier. */
 static uint8_t                      m_peer_count = 0;                    /**< Number of peer's connected. */
 static ble_scan_mode_t              m_scan_mode = BLE_FAST_SCAN;         /**< Scan mode used by application. */
-static uint16_t                     m_conn_handle;                       /**< Current connection handle. */
+//static uint16_t                     m_conn_handle;                       /**< Current connection handle. */
 static volatile bool                m_whitelist_temporarily_disabled = false; /**< True if whitelist has been temporarily disabled. */
 
 static bool                         m_memory_access_in_progress = false; /**< Flag to keep track of ongoing operations on persistent memory. */
@@ -118,11 +119,11 @@ static const ble_gap_conn_params_t m_connection_param =
     (uint16_t)SUPERVISION_TIMEOUT        // Supervision time-out
 };
 
-#if !defined(__SUPPORT_WLOCK__)
-static void scan_start(void);
-#else
-void scan_start(void);
+#ifdef __SUPPORT_WLOCK__
+extern wlock_data_t m_wlock_data;
 #endif
+void scan_start(void);
+
 #define APPL_LOG                        app_trace_log             /**< Debug logger macro that will be used in this file to do logging of debug information over UART. */
 
 
@@ -142,7 +143,6 @@ void assert_nrf_callback(uint16_t line_num, const uint8_t * p_file_name)
     app_error_handler(0xDEADBEEF, line_num, p_file_name);
 }
 
-#if !defined(__SUPPORT_WLOCK__)
 void uart_error_handle(app_uart_evt_t * p_event)
 {
     if (p_event->evt_type == APP_UART_COMMUNICATION_ERROR)
@@ -154,7 +154,7 @@ void uart_error_handle(app_uart_evt_t * p_event)
         APP_ERROR_HANDLER(p_event->data.error_code);
     }
 }
-#endif
+
 /**@brief Callback handling device manager events.
  *
  * @details This function is called to notify the application of device manager events.
@@ -183,10 +183,10 @@ static ret_code_t device_manager_event_handler(const dm_handle_t    * p_handle,
                                 peer_addr->addr[0], peer_addr->addr[1], peer_addr->addr[2],
                                 peer_addr->addr[3], peer_addr->addr[4], peer_addr->addr[5]);
             
-            err_code = bsp_indication_set(BSP_INDICATE_CONNECTED);
-            APP_ERROR_CHECK(err_code);
+//            err_code = bsp_indication_set(BSP_INDICATE_CONNECTED);
+//            APP_ERROR_CHECK(err_code);
 
-            m_conn_handle = p_event->event_param.p_gap_param->conn_handle;
+//            m_conn_handle = p_event->event_param.p_gap_param->conn_handle;
 
             m_dm_device_handle = (*p_handle);
 
@@ -200,6 +200,9 @@ static ret_code_t device_manager_event_handler(const dm_handle_t    * p_handle,
             {
                 scan_start();
             }
+#ifdef __SUPPORT_WLOCK__
+			m_wlock_data.ble_connected_flag = true;
+#endif
             APPL_LOG("[APPL]: << DM_EVT_CONNECTION\r\n");
             break;
         }
@@ -209,14 +212,17 @@ static ret_code_t device_manager_event_handler(const dm_handle_t    * p_handle,
             APPL_LOG("[APPL]: >> DM_EVT_DISCONNECTION\r\n");
             memset(&m_ble_db_discovery, 0 , sizeof (m_ble_db_discovery));
 
-            err_code = bsp_indication_set(BSP_INDICATE_IDLE);
-            APP_ERROR_CHECK(err_code);
-
+//            err_code = bsp_indication_set(BSP_INDICATE_IDLE);
+//            APP_ERROR_CHECK(err_code);
+#ifdef __SUPPORT_WLOCK__
+			m_wlock_data.ble_disconnected_flag = true;
+#else
             if (m_peer_count == MAX_PEER_COUNT)
             {
                 scan_start();
             }
             m_peer_count--;
+#endif
             APPL_LOG("[APPL]: << DM_EVT_DISCONNECTION\r\n");
             break;
         }
@@ -314,18 +320,15 @@ static uint32_t adv_report_parse(uint8_t type, data_t * p_advdata, data_t * p_ty
  *
  * @note This function will not return.
  */
-#if !defined(__SUPPORT_WLOCK__)
-static void sleep_mode_enter(void)
-#else
 void sleep_mode_enter(void)
-#endif
 {
-    uint32_t err_code = bsp_indication_set(BSP_INDICATE_IDLE);
-    APP_ERROR_CHECK(err_code);
+	uint32_t err_code;
+//    uint32_t err_code = bsp_indication_set(BSP_INDICATE_IDLE);
+//    APP_ERROR_CHECK(err_code);
 
     // Prepare wakeup buttons.
-    err_code = bsp_btn_ble_sleep_mode_prepare();
-    APP_ERROR_CHECK(err_code);
+//    err_code = bsp_btn_ble_sleep_mode_prepare();
+//    APP_ERROR_CHECK(err_code);
 
     // Go to system-off mode (this function will not return; wakeup will cause a reset).
     err_code = sd_power_system_off();
@@ -386,8 +389,8 @@ static void on_ble_evt(ble_evt_t * p_ble_evt)
                         {
                             APPL_LOG("[APPL]: Scan stop failed, reason %d\r\n", err_code);
                         }
-                        err_code = bsp_indication_set(BSP_INDICATE_IDLE);
-                        APP_ERROR_CHECK(err_code);
+//                        err_code = bsp_indication_set(BSP_INDICATE_IDLE);
+//                        APP_ERROR_CHECK(err_code);
 
                         m_scan_param.selective = 0; 
                         m_scan_param.p_whitelist = NULL;
@@ -411,6 +414,9 @@ static void on_ble_evt(ble_evt_t * p_ble_evt)
         }
 
         case BLE_GAP_EVT_TIMEOUT:
+#ifdef __SUPPORT_WLOCK__
+			m_wlock_data.ble_scan_timeout_flag= true;
+#else
             if (p_gap_evt->params.timeout.src == BLE_GAP_TIMEOUT_SRC_SCAN)
             {
                 APPL_LOG("[APPL]: Scan timed out.\r\n");
@@ -420,6 +426,7 @@ static void on_ble_evt(ble_evt_t * p_ble_evt)
             {
                 APPL_LOG("[APPL]: Connection Request timed out.\r\n");
             }
+#endif
             break;
 
         case BLE_GAP_EVT_CONN_PARAM_UPDATE_REQUEST:
@@ -473,8 +480,8 @@ static void ble_evt_dispatch(ble_evt_t * p_ble_evt)
     dm_ble_evt_handler(p_ble_evt);
     ble_db_discovery_on_ble_evt(&m_ble_db_discovery, p_ble_evt);
     ble_hrs_c_on_ble_evt(&m_ble_hrs_c, p_ble_evt);
-    ble_bas_c_on_ble_evt(&m_ble_bas_c, p_ble_evt);
-    bsp_btn_ble_on_ble_evt(p_ble_evt);
+//    ble_bas_c_on_ble_evt(&m_ble_bas_c, p_ble_evt);
+//    bsp_btn_ble_on_ble_evt(p_ble_evt);
     on_ble_evt(p_ble_evt);
 }
 
@@ -568,7 +575,7 @@ static void device_manager_init(bool erase_bonds)
     APP_ERROR_CHECK(err_code);
 }
 
-
+#if 0
 /**@brief Function for disabling the use of whitelist for scanning.
  */
 static void whitelist_disable(void)
@@ -591,7 +598,6 @@ static void whitelist_disable(void)
     }
     m_whitelist_temporarily_disabled = true;
 }
-
 
 /**@brief Function for handling events from the BSP module.
  *
@@ -622,7 +628,7 @@ void bsp_event_handler(bsp_event_t event)
             break;
     }
 }
-
+#endif
 
 /**@brief Heart Rate Collector Handler.
  */
@@ -654,7 +660,7 @@ static void hrs_c_evt_handler(ble_hrs_c_t * p_hrs_c, ble_hrs_c_evt_t * p_hrs_c_e
     }
 }
 
-#if !defined(__SUPPORT_WLOCK__)
+#if 0
 /**@brief Battery levelCollector Handler.
  */
 static void bas_c_evt_handler(ble_bas_c_t * p_bas_c, ble_bas_c_evt_t * p_bas_c_evt)
@@ -714,7 +720,7 @@ static void hrs_c_init(void)
     APP_ERROR_CHECK(err_code);
 }
 
-#if !defined(__SUPPORT_WLOCK__)
+#if 0
 /**
  * @brief Battery level collector initialization.
  */
@@ -742,11 +748,7 @@ static void db_discovery_init(void)
 
 /**@brief Function to start scanning.
  */
-#if !defined(__SUPPORT_WLOCK__)
-static void scan_start(void)
-#else
 void scan_start(void)
-#endif
 {
     ble_gap_whitelist_t   whitelist;
     ble_gap_addr_t      * p_whitelist_addr[BLE_GAP_WHITELIST_ADDR_MAX_COUNT];
@@ -785,7 +787,11 @@ void scan_start(void)
         m_scan_param.interval     = SCAN_INTERVAL;// Scan interval.
         m_scan_param.window       = SCAN_WINDOW;  // Scan window.
         m_scan_param.p_whitelist  = NULL;         // No whitelist provided.
+#ifdef __SUPPORT_WLOCK__
+        m_scan_param.timeout = SCAN_TIMEOUT;
+#else
         m_scan_param.timeout      = 0x0000;       // No timeout.
+#endif
     }
     else
     {
@@ -801,11 +807,11 @@ void scan_start(void)
     err_code = sd_ble_gap_scan_start(&m_scan_param);
     APP_ERROR_CHECK(err_code);
 
-    err_code = bsp_indication_set(BSP_INDICATE_SCANNING);
-    APP_ERROR_CHECK(err_code);
+//    err_code = bsp_indication_set(BSP_INDICATE_SCANNING);
+//    APP_ERROR_CHECK(err_code);
 }
 
-#if !defined(__SUPPORT_WLOCK__)
+
 /**@brief Function for initializing the UART.
  */
 static void uart_init(void)
@@ -834,8 +840,8 @@ static void uart_init(void)
 
     app_trace_init();
 }
-#endif
-#if !defined(__SUPPORT_WLOCK__)
+
+#if 0
 /**@brief Function for initializing buttons and leds.
  *
  * @param[out] p_erase_bonds  Will be true if the clear bonding button was pressed to wake the application up.
@@ -872,26 +878,22 @@ int main(void)
 
     // Initialize.
     APP_TIMER_INIT(APP_TIMER_PRESCALER, APP_TIMER_OP_QUEUE_SIZE, NULL);
-#if !defined(__SUPPORT_WLOCK__)
-    buttons_leds_init(&erase_bonds);
-    //uart_init();
+//    buttons_leds_init(&erase_bonds);
+    uart_init();
     printf("Heart rate collector example\r\n");
-#endif
-    device_manager_init(erase_bonds);
-    
-#if defined(__SUPPORT_WLOCK__)
-    wlock_init();
-#endif
     ble_stack_init();
+    device_manager_init(erase_bonds);
     db_discovery_init();
     hrs_c_init();
-#if !defined(__SUPPORT_WLOCK__)
-    bas_c_init();
-#endif
+//    bas_c_init();
+
     // Start scanning for peripherals and initiate connection
     // with devices that advertise Heart Rate UUID.
+#ifdef __SUPPORT_WLOCK__
+    wlock_init();
+#else
     scan_start();
-
+#endif
     for (;; )
     {
         power_manage();

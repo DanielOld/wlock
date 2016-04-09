@@ -33,7 +33,7 @@ FILE __stdin;
 int fgetc(FILE * p_file)
 {
     uint8_t input;
- //   while (app_uart_get(&input) == NRF_ERROR_NOT_FOUND)
+    while (app_uart_get(&input) == NRF_ERROR_NOT_FOUND)
     {
         // No implementation needed.
     }
@@ -43,9 +43,9 @@ int fgetc(FILE * p_file)
 
 int fputc(int ch, FILE * p_file)
 {
-//    UNUSED_PARAMETER(p_file);
+    UNUSED_PARAMETER(p_file);
 
-//    UNUSED_VARIABLE(app_uart_put((uint8_t)ch));
+    UNUSED_VARIABLE(app_uart_put((uint8_t)ch));
     return ch;
 }
 #elif defined(__GNUC__)
@@ -55,11 +55,11 @@ int _write(int file, const char * p_char, int len)
 {
     int i;
 
-//    UNUSED_PARAMETER(file);
+    UNUSED_PARAMETER(file);
 
     for (i = 0; i < len; i++)
     {
-//        UNUSED_VARIABLE(app_uart_put(*p_char++));
+        UNUSED_VARIABLE(app_uart_put(*p_char++));
     }
 
     return len;
@@ -68,8 +68,8 @@ int _write(int file, const char * p_char, int len)
 
 int _read(int file, char * p_char, int len)
 {
-//    UNUSED_PARAMETER(file);
-//    while (app_uart_get((uint8_t *)p_char) == NRF_ERROR_NOT_FOUND)
+    UNUSED_PARAMETER(file);
+    while (app_uart_get((uint8_t *)p_char) == NRF_ERROR_NOT_FOUND)
     {
         // No implementation needed.
     }
