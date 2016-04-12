@@ -25,22 +25,23 @@ typedef enum
 
 
 /* input GPIO */
-#define GPIO_CHARGE_STATE 				17
-#define GPIO_INFRARED_TRIGGER			18
-#define GPIO_VIBRATE_TRIGGER			19
-#define GPIO_LOW_VOLTAGE_DETECT 		20
+#define GPIO_LOCK_PICKING				14 
+#define GPIO_CHARGE_STATE 				18
+#define GPIO_INFRARED_TRIGGER			16
+#define GPIO_VIBRATE_TRIGGER			15
+#define GPIO_LOW_VOLTAGE_DETECT 		17 /*???*/
 
 /* output GPIO */
-#define GPIO_LED1						21
-#define GPIO_SPERAKER					22
-#define GPIO_INFRARED_POWER_ON			23 /* Control infrared power */
-#define GPIO_GSM_LOW_POWER_INDICATE		24 /* Indicate low power state */
-#define GPIO_GSM_POWER_ON				24 /* Open V_BAT */
-#define GPIO_GSM_POWER_KEY				24 /* GSM power key */
+#define GPIO_LED1						3  /*???*/
+#define GPIO_SPERAKER					7
+#define GPIO_INFRARED_POWER_ON			9 /* Control infrared power */
+#define GPIO_GSM_LOW_POWER_INDICATE		3  /*???*//* Indicate low power state */
+#define GPIO_GSM_POWER_ON				10 /* Open V_BAT */
+#define GPIO_GSM_POWER_KEY				6 /* GSM power key */
 
 /* input */
 #define BOOL_IS_CHR						1
-#define BOOL_IS_LVD						1
+#define BOOL_IS_LVD						0
 /* output */
 #define BOOL_LED_ON						0
 #define BOOL_LED_OFF					1

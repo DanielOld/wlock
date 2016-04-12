@@ -61,23 +61,41 @@ static bool wlock_gpio_get(nrf_drv_gpiote_pin_t pin)
 
 static void wlock_voice_aware(void)
 {
-    int i,j;
+    int i,j,k;
 
-	for(i=0; i<3; i++)
+	for(i=0; i<2; i++)
 	{
 	    for(j=0; j<250; j++)
 	    {
 	        wlock_gpio_set(GPIO_SPERAKER, BOOL_SPEAKER_ON);
-        	nrf_delay_ms(1);
+        	nrf_delay_us(100);
 	        wlock_gpio_set(GPIO_SPERAKER, BOOL_SPEAKER_OFF);
-        	nrf_delay_ms(3);
+        	nrf_delay_us(200);
 	    }
+		nrf_delay_ms(500);
 	}
 }
 
 static void wlock_voice_warning(void)
 {
+    int i,j,k,m;
 
+	for(m=0; m<60; m++)
+	{
+	    for(k=10; k<60; k++)
+	    {
+	        for (j=0;j<20;j++)
+	        {
+	            wlock_gpio_set(GPIO_SPERAKER, BOOL_SPEAKER_ON);
+       	        nrf_delay_us(150);
+	            wlock_gpio_set(GPIO_SPERAKER, BOOL_SPEAKER_OFF);
+       	        for(i=0;i<k;i++)
+       	        {
+       	            nrf_delay_us(5);
+       	        }
+       	    }	
+	    }
+	}
 }
 
 static void wlock_gsm_power_on(wlock_power_on_cause_t cause)
@@ -107,6 +125,19 @@ static void wlock_gpio_event_handler(nrf_drv_gpiote_pin_t pin, nrf_gpiote_polari
 			}
 			break;
 		case GPIO_INFRARED_TRIGGER:
+			if (m_wlock_data.aware_flag == false) {
+				m_wlock_data.aware_flag = true;
+				m_wlock_data.warning_filter++;
+			} 
+			else if(m_wlock_data.warning_filter >= WLOCK_WARNING_FILTER_COUNT)
+			{
+				m_wlock_data.warning_flag = true;
+			}
+			else
+			{
+			    m_wlock_data.warning_filter++;
+			}
+			break;
 		case GPIO_VIBRATE_TRIGGER:
 			if (m_wlock_data.aware_flag == false) {
 				m_wlock_data.aware_flag = true;
