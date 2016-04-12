@@ -28,11 +28,11 @@ typedef enum
 #define BLE_BOND_RSSI				  (-50) /* dBm */
 
 /* input GPIO */
-#define GPIO_LOCK_PICKING				14 
 #define GPIO_CHARGE_STATE 				18
+#define GPIO_LOW_VOLTAGE_DETECT 		17 /*???*/
 #define GPIO_INFRARED_TRIGGER			16
 #define GPIO_VIBRATE_TRIGGER			15
-#define GPIO_LOW_VOLTAGE_DETECT 		17 /*???*/
+#define GPIO_LOCK_PICKING				14 
 
 /* output GPIO */
 #define GPIO_LED1						3  /*???*/
