@@ -737,7 +737,11 @@ static __INLINE ret_code_t device_instance_free(uint32_t device_index)
  * @retval NRF_SUCCESS         Operation success.
  * @retval NRF_ERROR_NOT_FOUND Operation failure.
  */
+#ifdef __SUPPORT_WLOCK__
+ret_code_t device_instance_find(ble_gap_addr_t const * p_addr, uint32_t * p_device_index)
+#else
 static ret_code_t device_instance_find(ble_gap_addr_t const * p_addr, uint32_t * p_device_index)
+#endif
 {
     ret_code_t err_code;
     uint32_t     index;

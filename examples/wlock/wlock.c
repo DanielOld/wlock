@@ -43,6 +43,7 @@ APP_TIMER_DEF(m_wlock_sec_timer_id);
 
 extern void scan_start(void);
 extern void sleep_mode_enter(void);
+extern ret_code_t device_instance_find(ble_gap_addr_t const * p_addr, uint32_t * p_device_index);
 
 static void wlock_gpio_set(nrf_drv_gpiote_pin_t pin, bool state)
 {
@@ -61,7 +62,7 @@ static bool wlock_gpio_get(nrf_drv_gpiote_pin_t pin)
 
 static void wlock_voice_aware(void)
 {
-    int i,j,k;
+    int i,j;
 
 	for(i=0; i<2; i++)
 	{
@@ -463,6 +464,24 @@ uint32_t wlock_init(void)
     }
 
     return err_code;
+}
+
+bool wlock_is_allowed_to_connect(ble_gap_addr_t const * p_addr, int8_t rssi)
+{
+    uint32_t    err_code;
+    uint32_t    device_index;
+    bool ret = false;
+	
+    err_code = device_instance_find(p_addr, &device_index);
+    if (err_code == NRF_SUCCESS)
+    {
+        ret = true;
+    }
+	else if ((rssi >= BLE_BOND_RSSI) && m_wlock_data.in_charge_flag)
+	{
+	    ret = true;
+	}
+    return ret;
 }
 
 #endif /* __SUPPORT_WLOCK__ */

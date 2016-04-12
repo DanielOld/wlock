@@ -24,6 +24,9 @@ typedef enum
 } wlock_power_on_cause_t;
 
 
+#define BLE_SCAN_TIMEOUT               5 /* sec */  
+#define BLE_BOND_RSSI				  (-50) /* dBm */
+
 /* input GPIO */
 #define GPIO_LOCK_PICKING				14 
 #define GPIO_CHARGE_STATE 				18
@@ -96,6 +99,7 @@ typedef struct
 } wlock_data_t;
 
 uint32_t wlock_init(void);
+bool wlock_is_allowed_to_connect(ble_gap_addr_t const * p_addr, int8_t rssi);
 
 
 #endif /* WLOCK_H__ */

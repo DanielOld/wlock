@@ -59,9 +59,6 @@
 
 #define SCAN_INTERVAL              0x00A0                             /**< Determines scan interval in units of 0.625 millisecond. */
 #define SCAN_WINDOW                0x0050                             /**< Determines scan window in units of 0.625 millisecond. */
-#ifdef __SUPPORT_WLOCK__
-#define SCAN_TIMEOUT               5 /* sec */  
-#endif
 
 #define MIN_CONNECTION_INTERVAL    MSEC_TO_UNITS(7.5, UNIT_1_25_MS)   /**< Determines minimum connection interval in millisecond. */
 #define MAX_CONNECTION_INTERVAL    MSEC_TO_UNITS(30, UNIT_1_25_MS)    /**< Determines maximum connection interval in millisecond. */
@@ -379,8 +376,12 @@ static void on_ble_evt(ble_evt_t * p_ble_evt)
                     UUID16_EXTRACT(&extracted_uuid,&type_data.p_data[u_index * UUID16_SIZE]);
 
                     APPL_LOG("\t[APPL]: %x\r\n",extracted_uuid);
-
+#ifdef __SUPPORT_WLOCK__
+                    if((extracted_uuid == TARGET_UUID) && 
+						wlock_is_allowed_to_connect(&p_gap_evt->params.adv_report.peer_addr, p_gap_evt->params.adv_report.rssi))
+#else
                     if(extracted_uuid == TARGET_UUID)
+#endif
                     {
                         // Stop scanning.
                         err_code = sd_ble_gap_scan_stop();
@@ -788,7 +789,7 @@ void scan_start(void)
         m_scan_param.window       = SCAN_WINDOW;  // Scan window.
         m_scan_param.p_whitelist  = NULL;         // No whitelist provided.
 #ifdef __SUPPORT_WLOCK__
-        m_scan_param.timeout = SCAN_TIMEOUT;
+        m_scan_param.timeout = BLE_SCAN_TIMEOUT;
 #else
         m_scan_param.timeout      = 0x0000;       // No timeout.
 #endif
