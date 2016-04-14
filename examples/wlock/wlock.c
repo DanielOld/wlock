@@ -248,10 +248,8 @@ static void wlock_sec_timer_handler(void * p_context)
 			{
 			    m_wlock_data.wlock_state = WLOCK_STATE_BLE_DISCONNECTED;
 			}
-    	    wlock_gpio_set(GPIO_LED1, BOOL_LED_ON);
 		break;
 		case WLOCK_STATE_BLE_DISCONNECTED:
-    	    wlock_gpio_set(GPIO_LED1, BOOL_LED_OFF);
 			wlock_reset_parameters();
 			m_wlock_data.wlock_state = WLOCK_STATE_IDLE;
 		break;
@@ -374,7 +372,7 @@ uint32_t wlock_init(void)
     {
         return err_code;
     }
-
+#ifdef GPIO_LED1
     /* LED1 */
     NRF_GPIO->PIN_CNF[GPIO_LED1] = (GPIO_PIN_CNF_SENSE_Disabled << GPIO_PIN_CNF_SENSE_Pos) 
         |(GPIO_PIN_CNF_DRIVE_H0H1 << GPIO_PIN_CNF_DRIVE_Pos)    
@@ -383,7 +381,7 @@ uint32_t wlock_init(void)
         |(GPIO_PIN_CNF_DIR_Output << GPIO_PIN_CNF_DIR_Pos);  
 	
     wlock_gpio_set(GPIO_LED1, BOOL_LED_OFF);
-	
+#endif	
 
     /* voice */
     NRF_GPIO->PIN_CNF[GPIO_SPERAKER] = (GPIO_PIN_CNF_SENSE_Disabled << GPIO_PIN_CNF_SENSE_Pos) 
