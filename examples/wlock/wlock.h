@@ -37,7 +37,7 @@ typedef enum
 /* output GPIO */
 //#define GPIO_LED1						255  
 #define GPIO_SPERAKER					7
-#define GPIO_INFRARED_POWER_ON			9 /* Control infrared power */
+//#define GPIO_INFRARED_POWER_ON			9 /* Control infrared power */
 #define GPIO_GSM_LOW_POWER_INDICATE		3  /* Indicate low power state */
 #define GPIO_GSM_POWER_ON				10 /* Open V_BAT */
 #define GPIO_GSM_POWER_KEY				6 /* GSM power key */

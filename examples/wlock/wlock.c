@@ -392,7 +392,7 @@ uint32_t wlock_init(void)
 	
     wlock_gpio_set(GPIO_SPERAKER, BOOL_SPEAKER_OFF);
 
-
+#ifdef GPIO_INFRARED_POWER_ON
     /* infrared power on */
     NRF_GPIO->PIN_CNF[GPIO_INFRARED_POWER_ON] = (GPIO_PIN_CNF_SENSE_Disabled << GPIO_PIN_CNF_SENSE_Pos) 
         |(GPIO_PIN_CNF_DRIVE_H0H1 << GPIO_PIN_CNF_DRIVE_Pos)    
@@ -402,7 +402,7 @@ uint32_t wlock_init(void)
 	
     wlock_gpio_set(GPIO_INFRARED_POWER_ON, BOOL_INFRARED_POWER_ON);
 	nrf_delay_ms(10);
-    
+#endif
     /* GSM low power indicate */
     NRF_GPIO->PIN_CNF[GPIO_GSM_LOW_POWER_INDICATE] = (GPIO_PIN_CNF_SENSE_Disabled << GPIO_PIN_CNF_SENSE_Pos) 
         |(GPIO_PIN_CNF_DRIVE_H0H1 << GPIO_PIN_CNF_DRIVE_Pos)    
