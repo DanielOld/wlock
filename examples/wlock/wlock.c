@@ -13,24 +13,10 @@
 #include <stdio.h>
 #include <string.h>
 #include "nordic_common.h"
-#include "nrf_sdm.h"
-#include "ble.h"
-#include "ble_hci.h"
-#include "ble_db_discovery.h"
-#include "softdevice_handler.h"
-#include "app_util.h"
 #include "app_error.h"
-#include "boards.h"
 #include "nrf_gpio.h"
-#include "pstorage.h"
-#include "device_manager.h"
 #include "app_trace.h"
-#include "ble_hrs_c.h"
-#include "ble_bas_c.h"
-#include "app_util.h"
 #include "app_timer.h"
-#include "bsp.h"
-#include "bsp_btn_ble.h"
 #include "nrf_drv_gpiote.h"
 #include "nrf_delay.h"
 
@@ -155,7 +141,7 @@ static void wlock_reset_parameters(void)
 	m_wlock_data.lvd_warning_interval = 0;
 	/* leave lvd_rewarning_interval alone*/
 	m_wlock_data.gsm_power_key_interval = 0;
-    m_wlock_data.in_charge_flag = false;
+    //m_wlock_data.in_charge_flag = false;
 	m_wlock_data.aware_flag = false;
 	m_wlock_data.aware_interval = 0;
     m_wlock_data.ble_connected_flag = false;
@@ -202,12 +188,21 @@ static void wlock_sec_timer_handler(void * p_context)
 			}
 			else
 			{
-			    /* go to sleep */
-			    nrf_drv_gpiote_in_event_enable(GPIO_INFRARED_TRIGGER, true);
-			    nrf_drv_gpiote_in_event_enable(GPIO_VIBRATE_TRIGGER, true);
-			    nrf_drv_gpiote_in_event_enable(GPIO_LOCK_PICKING, true);
-			    nrf_drv_gpiote_in_event_enable(GPIO_LOW_VOLTAGE_DETECT, true);
-				sleep_mode_enter();
+			    /* check lvd again before entering sleep */
+				if (wlock_gpio_get(GPIO_LOW_VOLTAGE_DETECT) == BOOL_IS_LVD) 
+				{
+	    			m_wlock_data.lvd_flag = true;
+					m_wlock_data.lvd_rewarning_interval = 0;
+				}
+				else
+				{
+			    	/* go to sleep */
+				    nrf_drv_gpiote_in_event_enable(GPIO_INFRARED_TRIGGER, true);
+				    nrf_drv_gpiote_in_event_enable(GPIO_VIBRATE_TRIGGER, true);
+				    nrf_drv_gpiote_in_event_enable(GPIO_LOCK_PICKING, true);
+			    	nrf_drv_gpiote_in_event_enable(GPIO_LOW_VOLTAGE_DETECT, true);
+					sleep_mode_enter();
+				}
 			}
         break;
 		case WLOCK_STATE_AWARE:

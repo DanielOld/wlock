@@ -47,6 +47,10 @@
 #include "nrf_delay.h"
 //#include "bsp_btn_ble.h"
 
+#ifdef __SUPPORT_WLOCK__
+#include "wlock_key.h"
+#endif
+
 #define IS_SRVC_CHANGED_CHARACT_PRESENT  1                                          /**< Include or not the service_changed characteristic. if not enabled, the server's database cannot be changed for the lifetime of the device*/
 
 #define DEVICE_NAME                      "Wlock_Key"                               /**< Name of device. Will be included in the advertising data. */
@@ -928,7 +932,7 @@ int main(void)
     // Start execution.
     err_code = ble_advertising_start(BLE_ADV_MODE_FAST);
     APP_ERROR_CHECK(err_code);
-
+	  wlock_key_init();
     // Enter main loop.
     for (;;)
     {
