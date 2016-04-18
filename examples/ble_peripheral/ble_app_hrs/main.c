@@ -79,8 +79,13 @@
 
 #define SENSOR_CONTACT_DETECTED_INTERVAL APP_TIMER_TICKS(5000, APP_TIMER_PRESCALER) /**< Sensor Contact Detected toggle interval (ticks). */
 #endif
+#ifdef __SUPPORT_WLOCK__
+#define MIN_CONN_INTERVAL               MSEC_TO_UNITS(500, UNIT_1_25_MS)             /**< Minimum acceptable connection interval (0.5 seconds).  */
+#define MAX_CONN_INTERVAL               MSEC_TO_UNITS(1000, UNIT_1_25_MS)            /**< Maximum acceptable connection interval (1 second). */
+#else
 #define MIN_CONN_INTERVAL                MSEC_TO_UNITS(400, UNIT_1_25_MS)           /**< Minimum acceptable connection interval (0.4 seconds). */
 #define MAX_CONN_INTERVAL                MSEC_TO_UNITS(650, UNIT_1_25_MS)           /**< Maximum acceptable connection interval (0.65 second). */
+#endif
 #define SLAVE_LATENCY                    0                                          /**< Slave latency. */
 #define CONN_SUP_TIMEOUT                 MSEC_TO_UNITS(4000, UNIT_10_MS)            /**< Connection supervisory timeout (4 seconds). */
 
@@ -118,6 +123,10 @@ static ble_hrs_t                         m_hrs;                                 
 //static sensorsim_state_t                 m_heart_rate_sim_state;                    /**< Heart Rate sensor simulator state. */
 //static sensorsim_cfg_t                   m_rr_interval_sim_cfg;                     /**< RR Interval sensor simulator configuration. */
 //static sensorsim_state_t                 m_rr_interval_sim_state;                   /**< RR Interval sensor simulator state. */
+
+#ifdef __SUPPORT_WLOCK__
+    extern bool m_ble_connected;
+#endif
 
 #if 0
 APP_TIMER_DEF(m_battery_timer_id);                                                  /**< Battery timer. */
@@ -675,10 +684,16 @@ static void on_ble_evt(ble_evt_t * p_ble_evt)
 //            err_code = bsp_indication_set(BSP_INDICATE_CONNECTED);
 //            APP_ERROR_CHECK(err_code);
             m_conn_handle = p_ble_evt->evt.gap_evt.conn_handle;
+#ifdef __SUPPORT_WLOCK__
+    		m_ble_connected = true;
+#endif
             break;
 
         case BLE_GAP_EVT_DISCONNECTED:
             m_conn_handle = BLE_CONN_HANDLE_INVALID;
+#ifdef __SUPPORT_WLOCK__
+    		m_ble_connected = false;
+#endif
             err_code = ble_advertising_start(BLE_ADV_MODE_FAST);
             APP_ERROR_CHECK(err_code);
             break;

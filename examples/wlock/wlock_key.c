@@ -19,9 +19,11 @@
 #include "app_trace.h"
 #include "nrf_drv_gpiote.h"
 #include "nrf_delay.h"
-
+#include "ble_advertising.h"
 #ifdef __SUPPORT_WLOCK__
 #include "wlock_key.h"
+
+bool m_ble_connected = false;
 
 static void wlock_key_gpio_set(nrf_drv_gpiote_pin_t pin, bool state)
 {
@@ -34,10 +36,17 @@ static void wlock_key_gpio_set(nrf_drv_gpiote_pin_t pin, bool state)
 
 static void wlock_key_gpio_event_handler(nrf_drv_gpiote_pin_t pin, nrf_gpiote_polarity_t action)
 {
+    uint32_t err_code;
+
     switch(pin) {
 		case GPIO_KEY:
+		if(m_ble_connected == false)
+		{
+		    err_code = ble_advertising_start(BLE_ADV_MODE_FAST);
+    		APP_ERROR_CHECK(err_code);
+		}
 	    wlock_key_gpio_set(GPIO_LED1, BOOL_LED_ON);
-   		nrf_delay_us(1000);
+   		nrf_delay_ms(200);
     	wlock_key_gpio_set(GPIO_LED1, BOOL_LED_OFF);
 		default:
 			break;
@@ -79,7 +88,7 @@ uint32_t wlock_key_init(void)
         |(GPIO_PIN_CNF_DIR_Output << GPIO_PIN_CNF_DIR_Pos);  
 	
     wlock_key_gpio_set(GPIO_LED1, BOOL_LED_ON);
-   	nrf_delay_us(1000);
+   	nrf_delay_ms(200);
     wlock_key_gpio_set(GPIO_LED1, BOOL_LED_OFF);
 
     return err_code;

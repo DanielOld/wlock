@@ -46,6 +46,23 @@ static bool wlock_gpio_get(nrf_drv_gpiote_pin_t pin)
 }
 
 
+static void wlock_voice_connected(void)
+{
+    int i,j;
+
+	for(i=0; i<1; i++)
+	{
+	    for(j=0; j<250; j++)
+	    {
+	        wlock_gpio_set(GPIO_SPERAKER, BOOL_SPEAKER_ON);
+        	nrf_delay_us(100);
+	        wlock_gpio_set(GPIO_SPERAKER, BOOL_SPEAKER_OFF);
+        	nrf_delay_us(100);
+	    }
+		//nrf_delay_ms(500);
+	}
+}
+
 static void wlock_voice_aware(void)
 {
     int i,j;
@@ -228,6 +245,7 @@ static void wlock_sec_timer_handler(void * p_context)
 		case WLOCK_STATE_BLE_SCANNING:
 			if(m_wlock_data.ble_connected_flag)
 			{
+			    wlock_voice_connected();
 			    m_wlock_data.wlock_state = WLOCK_STATE_BLE_CONNECTED;
 			}
 			else if(m_wlock_data.ble_scan_timeout_flag)
@@ -306,7 +324,6 @@ uint32_t wlock_init(void)
             return err_code;
         }
     }
-
     /* charge state */
     config.is_watcher = false;
 	config.hi_accuracy = false;
@@ -317,7 +334,6 @@ uint32_t wlock_init(void)
     {
         return err_code;
     }
-
     /* infrared trigger */
     config.is_watcher = false;
 	config.hi_accuracy = false;
@@ -475,7 +491,8 @@ bool wlock_is_allowed_to_connect(ble_gap_addr_t const * p_addr, int8_t rssi)
         ret = true;
     }
 	else if ((rssi >= BLE_BOND_RSSI) && m_wlock_data.in_charge_flag)
-	{
+//	else if (rssi >= BLE_BOND_RSSI)
+		{
 	    ret = true;
 	}
     return ret;
