@@ -11,6 +11,7 @@
  */
 #ifndef PCA10028_H
 #define PCA10028_H
+#if 0
 
 // LEDs definitions for PCA10028
 #define LEDS_NUMBER    4
@@ -62,10 +63,10 @@
 
 #define BUTTONS_MASK   0x001E0000
 
-#define RX_PIN_NUMBER  21
-#define TX_PIN_NUMBER  22
-#define CTS_PIN_NUMBER 23
-#define RTS_PIN_NUMBER 24
+#define RX_PIN_NUMBER  1
+#define TX_PIN_NUMBER  2
+#define CTS_PIN_NUMBER 3
+#define RTS_PIN_NUMBER 4
 #define HWFC           true
 
 #define SPIS_MISO_PIN  28    // SPI MISO signal. 
@@ -138,7 +139,7 @@
 #define ARDUINO_A3_PIN              4     // Analog channel 3
 #define ARDUINO_A4_PIN              5     // Analog channel 4
 #define ARDUINO_A5_PIN              6     // Analog channel 5
-
+#endif
 // Low frequency clock source to be used by the SoftDevice
 #define NRF_CLOCK_LFCLKSRC      NRF_CLOCK_LFCLKSRC_XTAL_20_PPM
 

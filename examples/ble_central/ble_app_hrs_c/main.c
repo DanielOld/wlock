@@ -816,7 +816,7 @@ void scan_start(void)
 //    APP_ERROR_CHECK(err_code);
 }
 
-
+#if 0
 /**@brief Function for initializing the UART.
  */
 static void uart_init(void)
@@ -845,7 +845,7 @@ static void uart_init(void)
 
     app_trace_init();
 }
-
+#endif
 #if 0
 /**@brief Function for initializing buttons and leds.
  *
@@ -884,7 +884,7 @@ int main(void)
     // Initialize.
     APP_TIMER_INIT(APP_TIMER_PRESCALER, APP_TIMER_OP_QUEUE_SIZE, NULL);
 //    buttons_leds_init(&erase_bonds);
-    uart_init();
+//    uart_init();
     printf("Heart rate collector example\r\n");
     ble_stack_init();
     device_manager_init(erase_bonds);

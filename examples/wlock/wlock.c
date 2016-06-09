@@ -23,6 +23,9 @@
 #ifdef __SUPPORT_WLOCK__
 #include "wlock.h"
 
+extern bool twi_master_init(void);
+
+
 wlock_data_t m_wlock_data;
 APP_TIMER_DEF(m_wlock_sec_timer_id);  
 
@@ -173,6 +176,8 @@ static void wlock_reset_parameters(void)
 }
 static void wlock_sec_timer_handler(void * p_context)
 {
+    static bool led_on = false;
+
     switch(m_wlock_data.wlock_state)
     {
         case WLOCK_STATE_IDLE:
@@ -247,6 +252,9 @@ static void wlock_sec_timer_handler(void * p_context)
 			{
 			    wlock_voice_connected();
 			    m_wlock_data.wlock_state = WLOCK_STATE_BLE_CONNECTED;
+#ifdef GPIO_INFRARED_POWER_ON
+			    wlock_gpio_set(GPIO_INFRARED_POWER_ON, BOOL_INFRARED_POWER_OFF);
+#endif
 			}
 			else if(m_wlock_data.ble_scan_timeout_flag)
 			{
@@ -257,12 +265,46 @@ static void wlock_sec_timer_handler(void * p_context)
 			}
 		break;
 		case WLOCK_STATE_BLE_CONNECTED:
+			if(led_on == true) { 
+				led_on = false;
+			} else {
+			    wlock_gpio_set(GPIO_LED1, BOOL_LED_ON);
+				nrf_delay_ms(10);
+			    wlock_gpio_set(GPIO_LED1, BOOL_LED_OFF);
+				led_on = true;
+			}
 			if (m_wlock_data.ble_disconnected_flag)
 			{
 			    m_wlock_data.wlock_state = WLOCK_STATE_BLE_DISCONNECTED;
 			}
+			else if(m_wlock_data.lvd_flag)
+			{
+			    if(m_wlock_data.in_charge_flag == true)
+			    {
+			        m_wlock_data.lvd_flag = false;
+					m_wlock_data.lvd_rewarning_interval = 0;
+			    } else if(m_wlock_data.lvd_rewarning_interval <= 0)
+			    {
+				    nrf_drv_gpiote_in_event_disable(GPIO_INFRARED_TRIGGER);
+				    nrf_drv_gpiote_in_event_disable(GPIO_VIBRATE_TRIGGER);
+				    nrf_drv_gpiote_in_event_disable(GPIO_LOCK_PICKING);
+				    wlock_gsm_power_on(WLOCK_GSM_POWER_ON_LVD);
+					m_wlock_data.lvd_warning_interval = WLOCK_LVD_WARNING_INTERVAL; 
+					m_wlock_data.lvd_rewarning_interval = WLOCK_LVD_REWARNING_INTERVAL;
+				    m_wlock_data.wlock_state = WLOCK_STATE_LVD;
+			    }
+				else
+				{
+				    m_wlock_data.lvd_rewarning_interval--;
+				}
+			}
 		break;
 		case WLOCK_STATE_BLE_DISCONNECTED:
+		    wlock_gpio_set(GPIO_LED1, BOOL_LED_OFF);
+#ifdef GPIO_INFRARED_POWER_ON
+			wlock_gpio_set(GPIO_INFRARED_POWER_ON, BOOL_INFRARED_POWER_ON);
+			nrf_delay_ms(10);
+#endif
 			wlock_reset_parameters();
 			m_wlock_data.wlock_state = WLOCK_STATE_IDLE;
 		break;
@@ -287,6 +329,17 @@ static void wlock_sec_timer_handler(void * p_context)
 			}
 		break;
 		case WLOCK_STATE_LVD:
+			if(m_wlock_data.ble_connected_flag) {
+    			if(led_on == true) { 
+    				led_on = false;
+    			} else {
+    			    wlock_gpio_set(GPIO_LED1, BOOL_LED_ON);
+    				nrf_delay_ms(10);
+    			    wlock_gpio_set(GPIO_LED1, BOOL_LED_OFF);
+    				led_on = true;
+    			}
+			}
+				
 			if(m_wlock_data.lvd_warning_interval > 0)
 			{
 			    m_wlock_data.lvd_warning_interval--;
@@ -303,8 +356,15 @@ static void wlock_sec_timer_handler(void * p_context)
 			else
 			{
 		   	    wlock_gpio_set(GPIO_GSM_LOW_POWER_INDICATE, BOOL_GSM_LVD_OFF);
-				wlock_reset_parameters();
-			    m_wlock_data.wlock_state = WLOCK_STATE_IDLE;
+				if(m_wlock_data.ble_connected_flag)
+			    {
+			        m_wlock_data.wlock_state = WLOCK_STATE_BLE_CONNECTED;
+			    }
+				else
+				{
+				    wlock_reset_parameters();
+			        m_wlock_data.wlock_state = WLOCK_STATE_IDLE;
+				}
 			}		
 		break;
     }
@@ -362,6 +422,17 @@ uint32_t wlock_init(void)
 	config.sense = NRF_GPIOTE_POLARITY_HITOLO;
     config.pull = NRF_GPIO_PIN_PULLUP;
     err_code = nrf_drv_gpiote_in_init(GPIO_LOCK_PICKING, &config, wlock_gpio_event_handler);
+    if (err_code != NRF_SUCCESS)
+    {
+        return err_code;
+    }
+
+    /* lock picking trigger */
+    config.is_watcher = false;
+	config.hi_accuracy = false;
+	config.sense = NRF_GPIOTE_POLARITY_HITOLO;
+    config.pull = NRF_GPIO_PIN_PULLUP;
+    err_code = nrf_drv_gpiote_in_init(GPIO_ERASE_KEY, &config, wlock_gpio_event_handler);
     if (err_code != NRF_SUCCESS)
     {
         return err_code;
@@ -462,6 +533,7 @@ uint32_t wlock_init(void)
     nrf_drv_gpiote_in_event_enable(GPIO_LOCK_PICKING, true);
     nrf_drv_gpiote_in_event_disable(GPIO_LOW_VOLTAGE_DETECT); /* it will be enabled before sleep */
 
+    twi_master_init();
 
     err_code =
         app_timer_create(&m_wlock_sec_timer_id, APP_TIMER_MODE_REPEATED, wlock_sec_timer_handler);
@@ -490,8 +562,8 @@ bool wlock_is_allowed_to_connect(ble_gap_addr_t const * p_addr, int8_t rssi)
     {
         ret = true;
     }
-	else if ((rssi >= BLE_BOND_RSSI) && m_wlock_data.in_charge_flag)
-//	else if (rssi >= BLE_BOND_RSSI)
+//	else if ((rssi >= BLE_BOND_RSSI) && m_wlock_data.in_charge_flag)
+	else if (rssi >= BLE_BOND_RSSI)
 		{
 	    ret = true;
 	}
