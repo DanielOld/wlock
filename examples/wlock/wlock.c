@@ -48,7 +48,7 @@ static bool wlock_gpio_get(nrf_drv_gpiote_pin_t pin)
     return (NRF_GPIO->IN >> pin) & 0x1UL;
 }
 
-
+/*
 static void wlock_voice_connected(void)
 {
     int i,j;
@@ -65,6 +65,7 @@ static void wlock_voice_connected(void)
 		//nrf_delay_ms(500);
 	}
 }
+*/
 
 static void wlock_voice_aware(void)
 {
@@ -250,7 +251,7 @@ static void wlock_sec_timer_handler(void * p_context)
 		case WLOCK_STATE_BLE_SCANNING:
 			if(m_wlock_data.ble_connected_flag)
 			{
-			    wlock_voice_connected();
+//			    wlock_voice_connected();
 			    m_wlock_data.wlock_state = WLOCK_STATE_BLE_CONNECTED;
 #ifdef GPIO_INFRARED_POWER_ON
 			    wlock_gpio_set(GPIO_INFRARED_POWER_ON, BOOL_INFRARED_POWER_OFF);
@@ -564,7 +565,7 @@ bool wlock_is_allowed_to_connect(ble_gap_addr_t const * p_addr, int8_t rssi)
     }
 //	else if ((rssi >= BLE_BOND_RSSI) && m_wlock_data.in_charge_flag)
 	else if (rssi >= BLE_BOND_RSSI)
-		{
+	{
 	    ret = true;
 	}
     return ret;

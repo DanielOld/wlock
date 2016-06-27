@@ -42,6 +42,11 @@ typedef enum
 #define GPIO_GSM_LOW_POWER_INDICATE		3  /* Indicate low power state */
 #define GPIO_GSM_POWER_ON				10 /* Open V_BAT */
 #define GPIO_GSM_POWER_KEY				6 /* GSM power key */
+
+/* uart GPIO */
+#define RX_PIN_NUMBER  1
+#define TX_PIN_NUMBER  2
+
 #else /* for development board pca10028 */
 /* input GPIO */
 #define GPIO_CHARGE_STATE 				17
