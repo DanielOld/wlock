@@ -15,10 +15,14 @@
 #include "nordic_common.h"
 #include "app_error.h"
 #include "nrf_gpio.h"
+#include "pstorage.h"
 #include "app_trace.h"
 #include "app_timer.h"
 #include "nrf_drv_gpiote.h"
 #include "nrf_delay.h"
+#include "ble_advertising.h"
+#include "nrf_sdm.h"
+
 
 #ifdef __SUPPORT_WLOCK__
 #include "wlock.h"
@@ -29,10 +33,162 @@ extern bool twi_master_init(void);
 wlock_data_t m_wlock_data;
 APP_TIMER_DEF(m_wlock_sec_timer_id);  
 
+#define ENDNODE_MAPPING_SIZE (sizeof(wlock_endnode_t)*WLOCK_MAX_ENDNODE)
+
+static wlock_endnode_t g_endnode_mapping[WLOCK_MAX_ENDNODE];
+static pstorage_handle_t       m_storage_handle;   
 
 extern void scan_start(void);
-extern void sleep_mode_enter(void);
-extern ret_code_t device_instance_find(ble_gap_addr_t const * p_addr, uint32_t * p_device_index);
+//extern ret_code_t device_instance_find(ble_gap_addr_t const * p_addr, uint32_t * p_device_index);
+
+
+static void wlock_sleep_mode_enter(void)
+{
+	uint32_t err_code;
+    err_code = sd_power_system_off();
+    APP_ERROR_CHECK(err_code);
+}
+
+
+static void wlock_pstorage_callback_handler(pstorage_handle_t * p_handle,
+                                      uint8_t             op_code,
+                                      uint32_t            result,
+                                      uint8_t           * p_data,
+                                      uint32_t            data_len)
+{
+    APP_ERROR_CHECK(result);
+}
+
+
+static bool wlock_endnode_load(void)
+{
+    pstorage_module_param_t param;
+    pstorage_handle_t       block_handle;
+    ret_code_t            err_code;
+
+    //DM_MUTEX_LOCK(); /* maybe can be used for spi flash */
+    err_code = pstorage_init();
+    APP_ERROR_CHECK(err_code);
+
+    memset(g_endnode_mapping, 0x00, ENDNODE_MAPPING_SIZE);
+
+    param.block_size  = ENDNODE_MAPPING_SIZE;
+    param.block_count = 1;
+    param.cb          = wlock_pstorage_callback_handler;
+
+    err_code = pstorage_register(&param, &m_storage_handle);
+
+    if (err_code == NRF_SUCCESS)
+    {
+        err_code = pstorage_block_identifier_get(&m_storage_handle, 0, &block_handle);
+        if (err_code == NRF_SUCCESS)
+        {
+            err_code = pstorage_load((uint8_t *)g_endnode_mapping,
+                                         &block_handle,
+                                         ENDNODE_MAPPING_SIZE,
+                                         0);
+        }
+    }
+    if(err_code == NRF_SUCCESS)
+	{
+	    return true;
+	}
+	else
+	{
+	    return false;
+	}
+}
+
+
+
+static bool wlock_endnode_store(void)
+{
+    pstorage_handle_t       block_handle;
+    ret_code_t            err_code;
+
+    err_code = pstorage_block_identifier_get(&m_storage_handle, 0, &block_handle);
+    if (err_code == NRF_SUCCESS)
+    {
+       err_code = pstorage_store(&block_handle,
+                            (uint8_t *)g_endnode_mapping,
+                            ENDNODE_MAPPING_SIZE,
+                            0);
+    }
+    if(err_code == NRF_SUCCESS)
+	{
+	    return true;
+	}
+	else
+	{
+	    return false;
+	}
+}
+
+bool wlock_endnode_clear(void)
+{
+    pstorage_handle_t       block_handle;
+    ret_code_t            err_code;
+
+    err_code = pstorage_block_identifier_get(&m_storage_handle, 0, &block_handle);
+    if (err_code == NRF_SUCCESS)
+    {
+
+        err_code = pstorage_clear(&block_handle, ENDNODE_MAPPING_SIZE);
+    }
+
+    if(err_code == NRF_SUCCESS)
+	{
+	    return true;
+	}
+	else
+	{
+	    return false;
+	}
+}
+
+static bool wlock_endnode_match(wlock_endnode_t endnode)
+{
+    uint32_t i;
+
+	for(i=0; i<WLOCK_MAX_ENDNODE; i++)
+	{
+	    if(memcmp(&g_endnode_mapping[i], &endnode, sizeof(wlock_endnode_t)) == 0)
+	    {
+	        return true;
+	    }
+	}
+    return false;
+}
+
+static bool wlock_endnode_add(wlock_endnode_t endnode)
+{
+    uint32_t i;
+    ret_code_t err_code = NRF_ERROR_INTERNAL;
+
+	for(i=0; i<WLOCK_MAX_ENDNODE; i++)
+	{
+	    if((g_endnode_mapping[i].addr[0] == 0xff)
+		   && (g_endnode_mapping[i].addr[1] == 0xff)
+		   && (g_endnode_mapping[i].addr[2] == 0xff)
+		   && (g_endnode_mapping[i].addr[3] == 0xff)
+		   && (g_endnode_mapping[i].addr[4] == 0xff)
+		   && (g_endnode_mapping[i].addr[5] == 0xff))
+	    {
+	        memcpy(&g_endnode_mapping[i], &endnode, sizeof(wlock_endnode_t));
+			err_code = wlock_endnode_store();
+			break;
+	    }
+	}
+
+    if(err_code == NRF_SUCCESS)
+	{
+	    return true;
+	}
+	else
+	{
+	    return false;
+	}
+}
 
 static void wlock_gpio_set(nrf_drv_gpiote_pin_t pin, bool state)
 {
@@ -165,9 +321,8 @@ static void wlock_reset_parameters(void)
     //m_wlock_data.in_charge_flag = false;
 	m_wlock_data.aware_flag = false;
 	m_wlock_data.aware_interval = 0;
-    m_wlock_data.ble_connected_flag = false;
-	m_wlock_data.ble_disconnected_flag = false;
-	m_wlock_data.ble_scan_timeout_flag = false;
+    m_wlock_data.ble_c_connected_flag = false;
+	m_wlock_data.ble_p_connected_flag = false;
     m_wlock_data.warning_flag = false; 
 	m_wlock_data.warning_filter = 0;
 	m_wlock_data.warning_interval = 0;
@@ -178,6 +333,8 @@ static void wlock_reset_parameters(void)
 static void wlock_sec_timer_handler(void * p_context)
 {
     static bool led_on = false;
+    ret_code_t err_code;
+	static int ble_connect_timeout = 0;
 
     switch(m_wlock_data.wlock_state)
     {
@@ -224,7 +381,7 @@ static void wlock_sec_timer_handler(void * p_context)
 				    nrf_drv_gpiote_in_event_enable(GPIO_VIBRATE_TRIGGER, true);
 				    nrf_drv_gpiote_in_event_enable(GPIO_LOCK_PICKING, true);
 			    	nrf_drv_gpiote_in_event_enable(GPIO_LOW_VOLTAGE_DETECT, true);
-					sleep_mode_enter();
+					wlock_sleep_mode_enter();
 				}
 			}
         break;
@@ -235,8 +392,11 @@ static void wlock_sec_timer_handler(void * p_context)
 		        nrf_drv_gpiote_in_event_disable(GPIO_INFRARED_TRIGGER);
 		        nrf_drv_gpiote_in_event_disable(GPIO_VIBRATE_TRIGGER);
 		        nrf_drv_gpiote_in_event_disable(GPIO_LOCK_PICKING);
+				ble_connect_timeout = 0;
 				scan_start();
-				m_wlock_data.wlock_state = WLOCK_STATE_BLE_SCANNING;
+                err_code = ble_advertising_start(BLE_ADV_MODE_FAST);
+                APP_ERROR_CHECK(err_code);
+				m_wlock_data.wlock_state = WLOCK_STATE_BLE_CONNECTING;
 			}
 			else if(m_wlock_data.aware_interval > 0)
 			{
@@ -248,21 +408,25 @@ static void wlock_sec_timer_handler(void * p_context)
 			    m_wlock_data.wlock_state = WLOCK_STATE_IDLE;
 			}
 		break;
-		case WLOCK_STATE_BLE_SCANNING:
-			if(m_wlock_data.ble_connected_flag)
+		case WLOCK_STATE_BLE_CONNECTING:
+			if((m_wlock_data.ble_c_connected_flag == true) || 
+				(m_wlock_data.ble_p_connected_flag == true))
 			{
-//			    wlock_voice_connected();
 			    m_wlock_data.wlock_state = WLOCK_STATE_BLE_CONNECTED;
 #ifdef GPIO_INFRARED_POWER_ON
 			    wlock_gpio_set(GPIO_INFRARED_POWER_ON, BOOL_INFRARED_POWER_OFF);
 #endif
 			}
-			else if(m_wlock_data.ble_scan_timeout_flag)
+			else if(ble_connect_timeout >= BLE_WLOCK_TIMEOUT)
 			{
 			    wlock_gsm_power_on(WLOCK_GSM_POWER_ON_WARNING);
 				m_wlock_data.warning_interval = WLOCK_WARNING_INTERVAL;
 			    m_wlock_data.wlock_state = WLOCK_STATE_WARNING;
 			    wlock_voice_warning();
+			} 
+			else
+			{
+			    ble_connect_timeout++;
 			}
 		break;
 		case WLOCK_STATE_BLE_CONNECTED:
@@ -274,7 +438,8 @@ static void wlock_sec_timer_handler(void * p_context)
 			    wlock_gpio_set(GPIO_LED1, BOOL_LED_OFF);
 				led_on = true;
 			}
-			if (m_wlock_data.ble_disconnected_flag)
+			if((m_wlock_data.ble_c_connected_flag == false) && 
+				(m_wlock_data.ble_p_connected_flag == false))
 			{
 			    m_wlock_data.wlock_state = WLOCK_STATE_BLE_DISCONNECTED;
 			}
@@ -330,10 +495,14 @@ static void wlock_sec_timer_handler(void * p_context)
 			}
 		break;
 		case WLOCK_STATE_LVD:
-			if(m_wlock_data.ble_connected_flag) {
+			if((m_wlock_data.ble_c_connected_flag == true) || 
+				(m_wlock_data.ble_p_connected_flag == true))
+			{
     			if(led_on == true) { 
     				led_on = false;
-    			} else {
+    			} 
+					else 
+					{
     			    wlock_gpio_set(GPIO_LED1, BOOL_LED_ON);
     				nrf_delay_ms(10);
     			    wlock_gpio_set(GPIO_LED1, BOOL_LED_OFF);
@@ -357,7 +526,8 @@ static void wlock_sec_timer_handler(void * p_context)
 			else
 			{
 		   	    wlock_gpio_set(GPIO_GSM_LOW_POWER_INDICATE, BOOL_GSM_LVD_OFF);
-				if(m_wlock_data.ble_connected_flag)
+			if((m_wlock_data.ble_c_connected_flag == true) || 
+				(m_wlock_data.ble_p_connected_flag == true))
 			    {
 			        m_wlock_data.wlock_state = WLOCK_STATE_BLE_CONNECTED;
 			    }
@@ -374,8 +544,9 @@ static void wlock_sec_timer_handler(void * p_context)
 uint32_t wlock_init(void)
 {
     uint32_t err_code = NRF_SUCCESS;
-	
     nrf_drv_gpiote_in_config_t config;
+
+    wlock_endnode_load();
 
     if (!nrf_drv_gpiote_is_init())
     {
@@ -533,7 +704,6 @@ uint32_t wlock_init(void)
     nrf_drv_gpiote_in_event_enable(GPIO_VIBRATE_TRIGGER, true);
     nrf_drv_gpiote_in_event_enable(GPIO_LOCK_PICKING, true);
     nrf_drv_gpiote_in_event_disable(GPIO_LOW_VOLTAGE_DETECT); /* it will be enabled before sleep */
-
     twi_master_init();
 
     err_code =
@@ -552,24 +722,88 @@ uint32_t wlock_init(void)
     return err_code;
 }
 
-bool wlock_is_allowed_to_connect(ble_gap_addr_t const * p_addr, int8_t rssi)
+bool wlock_is_allowed_to_connect(uint8_t const * addr, int8_t rssi)
 {
-    uint32_t    err_code;
-    uint32_t    device_index;
     bool ret = false;
-	
-    err_code = device_instance_find(p_addr, &device_index);
-    if (err_code == NRF_SUCCESS)
+	wlock_endnode_t node;
+
+	memcpy(node.addr, addr, sizeof(node.addr));
+    if(wlock_endnode_match(node) == true)
     {
         ret = true;
     }
-//	else if ((rssi >= BLE_BOND_RSSI) && m_wlock_data.in_charge_flag)
-	else if (rssi >= BLE_BOND_RSSI)
+	else if (rssi >= BLE_WLOCK_RSSI)
 	{
-	    ret = true;
+	    ret = wlock_endnode_add(node);
 	}
     return ret;
 }
+
+#include "ble_hrs.h"
+extern ble_hrs_t    m_hrs; 
+static uint32_t wlock_ble_tx_handler(uint8_t *data, uint16_t len)
+{
+    uint32_t err_code;
+    uint16_t               hvx_len;
+    ble_gatts_hvx_params_t hvx_params;
+	
+    if (m_hrs.conn_handle != BLE_CONN_HANDLE_INVALID)
+    {
+        hvx_len = len;
+        memset(&hvx_params, 0, sizeof(hvx_params));
+        hvx_params.handle   = m_hrs.hrm_handles.value_handle;
+        hvx_params.type     = BLE_GATT_HVX_NOTIFICATION;
+        hvx_params.offset   = 0;
+        hvx_params.p_len    = &hvx_len;
+        hvx_params.p_data   = data;
+        
+        err_code = sd_ble_gatts_hvx(m_hrs.conn_handle, &hvx_params);
+        if ((err_code == NRF_SUCCESS) && (hvx_len != len))
+        {
+            err_code = NRF_ERROR_DATA_SIZE;
+        }
+    }
+    else
+    {
+        err_code = NRF_ERROR_INVALID_STATE;
+    }
+
+    return err_code;
+
+}
+
+/*
+header       cmd          len      address                 RSSI     tail
+0xaa 0xbb   0x01         0x07    xx xx xx xx xx xx     xx        0xcc 0xdd
+00    01        02           03      04 05 06 07 08 09   10        11    12
+*/
+void wlock_ble_rx_handler(uint8_t *data, uint16_t len)
+{
+#define PRO_HEAD 0xaabb
+#define PRO_TAIL 0xccdd
+
+    uint8_t buf[16];
+
+    if(len == 13)
+    {
+        if(data[2] == 0x01)
+        {
+            if(wlock_is_allowed_to_connect(&data[4], (int8_t)data[10]) == true)
+            {
+    			m_wlock_data.ble_p_connected_flag = true;
+                buf[0] = (uint8_t)(PRO_HEAD&0xff);
+                buf[1] = (uint8_t)((PRO_HEAD>>8)&0xff);
+                buf[2] = data[2];
+                buf[3] = 1;
+                buf[4] = 0;
+                buf[5] = (uint8_t)(PRO_TAIL&0xff);
+                buf[6] = (uint8_t)((PRO_TAIL>>8)&0xff);
+                wlock_ble_tx_handler(buf, 7);
+			}
+        }
+    }
+}
+
 
 #endif /* __SUPPORT_WLOCK__ */
 

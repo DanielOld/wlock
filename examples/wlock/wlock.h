@@ -4,13 +4,19 @@
 
 #include <stdint.h>
 #include <stdbool.h>
-#include <ble_gap.h>
+
+#define WLOCK_MAX_ENDNODE				50
+
+typedef struct
+{
+  uint8_t addr[6];       /**< 48-bit address, LSB format. */
+} wlock_endnode_t;
 
 typedef enum
 {
     WLOCK_STATE_IDLE,
 	WLOCK_STATE_AWARE,
-	WLOCK_STATE_BLE_SCANNING,
+	WLOCK_STATE_BLE_CONNECTING,
 	WLOCK_STATE_BLE_CONNECTED,
 	WLOCK_STATE_BLE_DISCONNECTED,
 	WLOCK_STATE_WARNING,
@@ -24,8 +30,8 @@ typedef enum
 } wlock_power_on_cause_t;
 
 
-#define BLE_SCAN_TIMEOUT               3 /* sec */  
-#define BLE_BOND_RSSI				  (-70) /* dBm */
+#define BLE_WLOCK_TIMEOUT               3 /* sec */  
+#define BLE_WLOCK_RSSI				  (-70) /* dBm */
 #if 1
 /* input GPIO */
 #define GPIO_CHARGE_STATE 				4
@@ -109,9 +115,12 @@ typedef struct
 	int32_t aware_interval;
 
 	/* ble */
-	bool ble_connected_flag;
-	bool ble_disconnected_flag;
-	bool ble_scan_timeout_flag;
+	//bool ble_connected_flag;
+	//bool ble_disconnected_flag;
+	//bool ble_scan_timeout_flag;
+	bool ble_c_connected_flag; /*central*/
+	bool ble_p_connected_flag; /*peripheral*/
+
 
 	/* warning */
     bool warning_flag; /* infrared and vibrate warning */
@@ -120,7 +129,9 @@ typedef struct
 } wlock_data_t;
 
 uint32_t wlock_init(void);
-bool wlock_is_allowed_to_connect(ble_gap_addr_t const * p_addr, int8_t rssi);
+bool wlock_is_allowed_to_connect(uint8_t const * addr, int8_t rssi);
+bool wlock_endnode_clear(void);
+void wlock_ble_rx_handler(uint8_t *data, uint16_t len);
 
 
 #endif /* WLOCK_H__ */
