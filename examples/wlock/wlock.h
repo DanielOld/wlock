@@ -40,6 +40,7 @@ typedef enum
 #define GPIO_VIBRATE_TRIGGER			15
 #define GPIO_LOCK_PICKING				14 
 #define GPIO_ERASE_KEY					17
+#define GPIO_GSENSOR_INT				24
 
 /* output GPIO */
 #define GPIO_LED1						18  

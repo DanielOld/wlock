@@ -26,6 +26,8 @@
 
 #ifdef __SUPPORT_WLOCK__
 #include "wlock.h"
+#include "kxcjk1013.h"
+
 
 extern bool twi_master_init(void);
 
@@ -288,6 +290,8 @@ static void wlock_gpio_event_handler(nrf_drv_gpiote_pin_t pin, nrf_gpiote_polari
 				m_wlock_data.in_charge_flag = false;
 			}
 			break;
+		case GPIO_GSENSOR_INT:
+			   kxcjk1013_interrupt_release();
 		case GPIO_INFRARED_TRIGGER:
 		case GPIO_VIBRATE_TRIGGER:
 		case GPIO_LOCK_PICKING:
@@ -329,6 +333,7 @@ static void wlock_reset_parameters(void)
     nrf_drv_gpiote_in_event_enable(GPIO_INFRARED_TRIGGER, true);
     nrf_drv_gpiote_in_event_enable(GPIO_VIBRATE_TRIGGER, true);
     nrf_drv_gpiote_in_event_enable(GPIO_LOCK_PICKING, true);
+    nrf_drv_gpiote_in_event_enable(GPIO_GSENSOR_INT, true);
 }
 static void wlock_sec_timer_handler(void * p_context)
 {
@@ -381,6 +386,7 @@ static void wlock_sec_timer_handler(void * p_context)
 				    nrf_drv_gpiote_in_event_enable(GPIO_VIBRATE_TRIGGER, true);
 				    nrf_drv_gpiote_in_event_enable(GPIO_LOCK_PICKING, true);
 			    	nrf_drv_gpiote_in_event_enable(GPIO_LOW_VOLTAGE_DETECT, true);
+			    	nrf_drv_gpiote_in_event_enable(GPIO_GSENSOR_INT, true);
 					wlock_sleep_mode_enter();
 				}
 			}
@@ -392,6 +398,7 @@ static void wlock_sec_timer_handler(void * p_context)
 		        nrf_drv_gpiote_in_event_disable(GPIO_INFRARED_TRIGGER);
 		        nrf_drv_gpiote_in_event_disable(GPIO_VIBRATE_TRIGGER);
 		        nrf_drv_gpiote_in_event_disable(GPIO_LOCK_PICKING);
+		        nrf_drv_gpiote_in_event_disable(GPIO_GSENSOR_INT);
 				ble_connect_timeout = 0;
 				scan_start();
                 err_code = ble_advertising_start(BLE_ADV_MODE_FAST);
@@ -453,6 +460,7 @@ static void wlock_sec_timer_handler(void * p_context)
 			    {
 				    nrf_drv_gpiote_in_event_disable(GPIO_INFRARED_TRIGGER);
 				    nrf_drv_gpiote_in_event_disable(GPIO_VIBRATE_TRIGGER);
+				    nrf_drv_gpiote_in_event_disable(GPIO_LOCK_PICKING);
 				    nrf_drv_gpiote_in_event_disable(GPIO_LOCK_PICKING);
 				    wlock_gsm_power_on(WLOCK_GSM_POWER_ON_LVD);
 					m_wlock_data.lvd_warning_interval = WLOCK_LVD_WARNING_INTERVAL; 
@@ -556,6 +564,10 @@ uint32_t wlock_init(void)
             return err_code;
         }
     }
+    twi_master_init();
+	kxcjk1013_init();
+
+#if 1
     /* charge state */
     config.is_watcher = false;
 	config.hi_accuracy = false;
@@ -626,6 +638,18 @@ uint32_t wlock_init(void)
     {
         return err_code;
     }
+#endif
+    /* gsensor int */
+    config.is_watcher = false;
+	config.hi_accuracy = false;
+    config.sense = NRF_GPIOTE_POLARITY_HITOLO;
+    config.pull = NRF_GPIO_PIN_NOPULL;
+    err_code = nrf_drv_gpiote_in_init(GPIO_GSENSOR_INT, &config, wlock_gpio_event_handler);
+    if (err_code != NRF_SUCCESS)
+    {
+        return err_code;
+    }
+
 #ifdef GPIO_LED1
     /* LED1 */
     NRF_GPIO->PIN_CNF[GPIO_LED1] = (GPIO_PIN_CNF_SENSE_Disabled << GPIO_PIN_CNF_SENSE_Pos) 
@@ -699,12 +723,14 @@ uint32_t wlock_init(void)
 	}
 	m_wlock_data.aware_flag = true; /* set aware flag whatever bootup reason */
 	m_wlock_data.wlock_state = WLOCK_STATE_IDLE;
+#if 1	
     nrf_drv_gpiote_in_event_enable(GPIO_CHARGE_STATE, true);
     nrf_drv_gpiote_in_event_enable(GPIO_INFRARED_TRIGGER, true);
     nrf_drv_gpiote_in_event_enable(GPIO_VIBRATE_TRIGGER, true);
     nrf_drv_gpiote_in_event_enable(GPIO_LOCK_PICKING, true);
     nrf_drv_gpiote_in_event_disable(GPIO_LOW_VOLTAGE_DETECT); /* it will be enabled before sleep */
-    twi_master_init();
+#endif
+    nrf_drv_gpiote_in_event_enable(GPIO_GSENSOR_INT, true); 
 
     err_code =
         app_timer_create(&m_wlock_sec_timer_id, APP_TIMER_MODE_REPEATED, wlock_sec_timer_handler);

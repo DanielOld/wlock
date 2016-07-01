@@ -332,7 +332,7 @@
               <MiscControls>--c99</MiscControls>
               <Define>BLE_STACK_SUPPORT_REQD BOARD_PCA10028 S130 NRF51 SOFTDEVICE_PRESENT SWI_DISABLE0 __SUPPORT_WLOCK__</Define>
               <Undefine></Undefine>
-              <IncludePath>..\..\..\config;..\..\..\..\..\..\bsp;..\..\..\..\..\..\..\components\toolchain;..\..\..\..\..\..\..\components\ble\ble_advertising;..\..\..\..\..\..\..\components\ble\ble_db_discovery;..\..\..\..\..\..\..\components\ble\ble_services\ble_hrs;..\..\..\..\..\..\..\components\ble\ble_services\ble_hrs_c;..\..\..\..\..\..\..\components\ble\ble_services\ble_rscs;..\..\..\..\..\..\..\components\ble\ble_services\ble_rscs_c;..\..\..\..\..\..\..\components\ble\common;..\..\..\..\..\..\..\components\ble\peer_manager;..\..\..\..\..\..\..\components\drivers_ext\segger_rtt;..\..\..\..\..\..\..\components\drivers_nrf\common;..\..\..\..\..\..\..\components\drivers_nrf\delay;..\..\..\..\..\..\..\components\drivers_nrf\gpiote;..\..\..\..\..\..\..\components\drivers_nrf\config;..\..\..\..\..\..\..\components\drivers_nrf\hal;..\..\..\..\..\..\..\components\drivers_nrf\pstorage;..\..\..\..\..\..\..\components\drivers_nrf\uart;..\..\..\..\..\..\..\components\libraries\button;..\..\..\..\..\..\..\components\libraries\experimental_section_vars;..\..\..\..\..\..\..\components\libraries\fds;..\..\..\..\..\..\..\components\libraries\fstorage;..\..\..\..\..\..\..\components\libraries\timer;..\..\..\..\..\..\..\components\libraries\trace;..\..\..\..\..\..\..\components\libraries\uart;..\..\..\..\..\..\..\components\libraries\util;..\..\..\..\..\..\..\components\softdevice\common\softdevice_handler;..\..\..\..\..\..\..\components\softdevice\s130\headers;..\..\..\..\..\..\..\examples\wlock;..\..\..\..\..\..\..\components\drivers_nrf\twi_master\deprecated\config</IncludePath>
+              <IncludePath>..\..\..\config;..\..\..\..\..\..\bsp;..\..\..\..\..\..\..\components\toolchain;..\..\..\..\..\..\..\components\ble\ble_advertising;..\..\..\..\..\..\..\components\ble\ble_db_discovery;..\..\..\..\..\..\..\components\ble\ble_services\ble_hrs;..\..\..\..\..\..\..\components\ble\ble_services\ble_hrs_c;..\..\..\..\..\..\..\components\ble\ble_services\ble_rscs;..\..\..\..\..\..\..\components\ble\ble_services\ble_rscs_c;..\..\..\..\..\..\..\components\ble\common;..\..\..\..\..\..\..\components\ble\peer_manager;..\..\..\..\..\..\..\components\drivers_ext\segger_rtt;..\..\..\..\..\..\..\components\drivers_nrf\common;..\..\..\..\..\..\..\components\drivers_nrf\delay;..\..\..\..\..\..\..\components\drivers_nrf\gpiote;..\..\..\..\..\..\..\components\drivers_nrf\config;..\..\..\..\..\..\..\components\drivers_nrf\hal;..\..\..\..\..\..\..\components\drivers_nrf\pstorage;..\..\..\..\..\..\..\components\drivers_nrf\uart;..\..\..\..\..\..\..\components\libraries\button;..\..\..\..\..\..\..\components\libraries\experimental_section_vars;..\..\..\..\..\..\..\components\libraries\fds;..\..\..\..\..\..\..\components\libraries\fstorage;..\..\..\..\..\..\..\components\libraries\timer;..\..\..\..\..\..\..\components\libraries\trace;..\..\..\..\..\..\..\components\libraries\uart;..\..\..\..\..\..\..\components\libraries\util;..\..\..\..\..\..\..\components\softdevice\common\softdevice_handler;..\..\..\..\..\..\..\components\softdevice\s130\headers;..\..\..\..\..\..\..\examples\wlock;..\..\..\..\..\..\..\components\drivers_nrf\twi_master\deprecated\config;..\..\..\..\..\..\..\components\drivers_nrf\twi_master\deprecated</IncludePath>
             </VariousControls>
           </Cads>
           <Aads>
@@ -2739,6 +2739,11 @@
               <FileName>wlock.c</FileName>
               <FileType>1</FileType>
               <FilePath>..\..\..\..\..\..\wlock\wlock.c</FilePath>
+            </File>
+            <File>
+              <FileName>kxcjk1013.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>..\..\..\..\..\..\wlock\kxcjk1013.c</FilePath>
             </File>
           </Files>
         </Group>
@@ -5482,6 +5487,11 @@
               <FileName>wlock.c</FileName>
               <FileType>1</FileType>
               <FilePath>..\..\..\..\..\..\wlock\wlock.c</FilePath>
+            </File>
+            <File>
+              <FileName>kxcjk1013.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>..\..\..\..\..\..\wlock\kxcjk1013.c</FilePath>
             </File>
           </Files>
         </Group>

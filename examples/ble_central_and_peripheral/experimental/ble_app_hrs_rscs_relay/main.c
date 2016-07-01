@@ -1051,11 +1051,21 @@ static void services_init(void)
     body_sensor_location = BLE_HRS_BODY_SENSOR_LOCATION_FINGER;
 
     memset(&hrs_init, 0, sizeof(hrs_init));
+#ifdef __SUPPORT_WLOCK__
+    hrs_init.evt_handler                 = NULL;
+    hrs_init.is_sensor_contact_supported = false;
+    hrs_init.p_body_sensor_location      = &body_sensor_location;
+    // Here the sec level for the Heart Rate Service can be changed/increased.
+    BLE_GAP_CONN_SEC_MODE_SET_OPEN(&hrs_init.hrs_hrm_attr_md.cccd_write_perm);
+    BLE_GAP_CONN_SEC_MODE_SET_OPEN(&hrs_init.hrs_hrm_attr_md.read_perm);
+    BLE_GAP_CONN_SEC_MODE_SET_OPEN(&hrs_init.hrs_hrm_attr_md.write_perm);
 
+    BLE_GAP_CONN_SEC_MODE_SET_OPEN(&hrs_init.hrs_bsl_attr_md.read_perm);
+    BLE_GAP_CONN_SEC_MODE_SET_NO_ACCESS(&hrs_init.hrs_bsl_attr_md.write_perm);
+#else
     hrs_init.evt_handler                 = NULL;
     hrs_init.is_sensor_contact_supported = true;
     hrs_init.p_body_sensor_location      = &body_sensor_location;
-
     // Here the sec level for the Heart Rate Service can be changed/increased.
     BLE_GAP_CONN_SEC_MODE_SET_OPEN(&hrs_init.hrs_hrm_attr_md.cccd_write_perm);
     BLE_GAP_CONN_SEC_MODE_SET_NO_ACCESS(&hrs_init.hrs_hrm_attr_md.read_perm);
@@ -1063,7 +1073,7 @@ static void services_init(void)
 
     BLE_GAP_CONN_SEC_MODE_SET_OPEN(&hrs_init.hrs_bsl_attr_md.read_perm);
     BLE_GAP_CONN_SEC_MODE_SET_NO_ACCESS(&hrs_init.hrs_bsl_attr_md.write_perm);
-
+#endif
     err_code = ble_hrs_init(&m_hrs, &hrs_init);
     APP_ERROR_CHECK(err_code);
 #if 0
