@@ -61,18 +61,17 @@
 #include "ble_conn_params.h"
 #include "ble_db_discovery.h"
 #include "ble_hrs.h"
-//#include "ble_rscs.h"
+#include "ble_rscs.h"
 #include "ble_hrs_c.h"
-//#include "ble_rscs_c.h"
+#include "ble_rscs_c.h"
 #include "ble_conn_state.h"
 #include "nrf_log.h"
 #include "fstorage.h"
 
 #include "fds.h"
 
-#ifdef __SUPPORT_WLOCK__
 #include "wlock.h"
-#endif
+
 
 #define APPL_LOG                    app_trace_log                      /**< Macro used to log debug information over UART. */
 //#define UART_TX_BUF_SIZE            256                                /**< Size of the UART TX buffer, in bytes. Must be a power of two. */
@@ -96,13 +95,10 @@
 
 #define SCAN_INTERVAL               0x00A0                             /**< Determines scan interval in units of 0.625 millisecond. */
 #define SCAN_WINDOW                 0x0050                             /**< Determines scan window in units of 0.625 millisecond. */
-#ifdef __SUPPORT_WLOCK__
 #define MIN_CONNECTION_INTERVAL    MSEC_TO_UNITS(500, UNIT_1_25_MS)   /**< Minimum acceptable connection interval (0.5 seconds).  */
 #define MAX_CONNECTION_INTERVAL    MSEC_TO_UNITS(1000, UNIT_1_25_MS)  /**< Maximum acceptable connection interval (1 second). */
-#else
-#define MIN_CONNECTION_INTERVAL    MSEC_TO_UNITS(7.5, UNIT_1_25_MS)   /**< Determines minimum connection interval in millisecond. */
-#define MAX_CONNECTION_INTERVAL    MSEC_TO_UNITS(30, UNIT_1_25_MS)    /**< Determines maximum connection interval in millisecond. */
-#endif
+//#define MIN_CONNECTION_INTERVAL    MSEC_TO_UNITS(7.5, UNIT_1_25_MS)   /**< Determines minimum connection interval in millisecond. */
+//#define MAX_CONNECTION_INTERVAL    MSEC_TO_UNITS(30, UNIT_1_25_MS)    /**< Determines maximum connection interval in millisecond. */
 #define SLAVE_LATENCY               0                                  /**< Determines slave latency in terms of connection events. */
 #define SUPERVISION_TIMEOUT         MSEC_TO_UNITS(4000, UNIT_10_MS)    /**< Determines supervision time-out in units of 10 milliseconds. */
 
@@ -134,11 +130,8 @@ static const ble_gap_scan_params_t m_scan_param =
     NULL,           // No whitelist provided.
     SCAN_INTERVAL,
     SCAN_WINDOW,
-#ifdef __SUPPORT_WLOCK__
-    BLE_WLOCK_TIMEOUT,
-#else
-    0x0000          // No timeout.
-#endif
+    WLOCK_BLE_SCAN_TIMEOUT,
+    //0x0000          // No timeout.
 };
 
 /**@brief Connection parameters requested for connection. */
@@ -162,25 +155,23 @@ static ble_db_discovery_t        m_ble_db_discovery_hrs;                        
 //#define PERIPHERAL_ADVERTISING_LED       BSP_LED_2_MASK
 //#define PERIPHERAL_CONNECTED_LED         BSP_LED_3_MASK
 
-#define DEVICE_NAME                      "Wlock_lock"                                    /**< Name of device used for advertising. */
-#define MANUFACTURER_NAME                "Wlock"                      /**< Manufacturer. Will be passed to Device Information Service. */
-#define APP_ADV_INTERVAL                 300                                        /**< The advertising interval (in units of 0.625 ms). This value corresponds to 25 ms. */
-#define APP_ADV_TIMEOUT_IN_SECONDS       BLE_WLOCK_TIMEOUT //180                                        /**< The advertising timeout in units of seconds. */
+#define DEVICE_NAME                      "Wlock"                                    /**< Name of device used for advertising. */
+#define MANUFACTURER_NAME                "KeepSafe"                      /**< Manufacturer. Will be passed to Device Information Service. */
+
+#define APP_ADV_INTERVAL                 0x0C80                                     /**< The advertising interval (in units of 0.625 ms). This value corresponds to 2 seconds. */
+#define APP_ADV_TIMEOUT_IN_SECONDS       00                                        /**< No timeout. */
 
 #define FIRST_CONN_PARAMS_UPDATE_DELAY   APP_TIMER_TICKS(5000, APP_TIMER_PRESCALER) /**< Time from initiating event (connect or start of notification) to first time sd_ble_gap_conn_param_update is called (5 seconds). */
 #define NEXT_CONN_PARAMS_UPDATE_DELAY    APP_TIMER_TICKS(30000, APP_TIMER_PRESCALER)/**< Time between each call to sd_ble_gap_conn_param_update after the first call (30 seconds). */
 #define MAX_CONN_PARAMS_UPDATE_COUNT     3                                          /**< Number of attempts before giving up the connection parameter negotiation. */
 
-ble_hrs_t    m_hrs;                                                          /**< Main structure for the Heart rate server module. */
-//static ble_rscs_t   m_rscs;                                                         /**< Main structure for the Running speed and cadence server module. */
+//static ble_hrs_t    m_hrs;                                                          /**< Main structure for the Heart rate server module. */
+ble_rscs_t   m_rscs;                                                         /**< Main structure for the Running speed and cadence server module. */
 
 /**@brief UUIDs which the central applications will scan for, and which will be advertised by the peripherals. */
-static ble_uuid_t m_adv_uuids[] = {{BLE_UUID_HEART_RATE_SERVICE,         BLE_UUID_TYPE_BLE}};
+static ble_uuid_t m_adv_uuids[] = {{BLE_UUID_RUNNING_SPEED_AND_CADENCE,  BLE_UUID_TYPE_BLE}};
 
-#ifdef __SUPPORT_WLOCK__
 extern wlock_data_t m_wlock_data;
-#endif
-void scan_start(void);
 
 
 /**@brief Function to handle asserts in the SoftDevice.
@@ -535,9 +526,7 @@ static void on_ble_central_evt(const ble_evt_t * const p_ble_evt)
                 NRF_LOG_PRINTF("Starting DB discovery for HRS\r\n");
                 err_code = ble_db_discovery_start(&m_ble_db_discovery_hrs, p_gap_evt->conn_handle);
                 APP_ERROR_CHECK(err_code);
-#ifdef __SUPPORT_WLOCK__
 			m_wlock_data.ble_c_connected_flag = true;
-#endif
             }
 #if 0
             else if(memcmp(&periph_addr_rsc, peer_addr, sizeof(ble_gap_addr_t)) == 0)
@@ -581,10 +570,7 @@ static void on_ble_central_evt(const ble_evt_t * const p_ble_evt)
                        p_gap_evt->params.disconnected.reason);
 
                 m_conn_handle_hrs_c = BLE_CONN_HANDLE_INVALID;
-#ifdef __SUPPORT_WLOCK__
 			    m_wlock_data.ble_c_connected_flag = false;
-#endif
-
             }
 #if 0
             else if(p_gap_evt->conn_handle == m_conn_handle_rscs_c)
@@ -652,14 +638,9 @@ static void on_ble_central_evt(const ble_evt_t * const p_ble_evt)
                  *  offers the same service. We then save the peer address, so that upon connection
                  *  we can tell which peer has connected and update its respective connection
                  *  handle. */
-#ifdef __SUPPORT_WLOCK__
                 if ((extracted_uuid      == BLE_UUID_HEART_RATE_SERVICE) &&
                     (m_conn_handle_hrs_c == BLE_CONN_HANDLE_INVALID) && 
                     wlock_is_allowed_to_connect(p_gap_evt->params.adv_report.peer_addr.addr, p_gap_evt->params.adv_report.rssi))
-#else
-                if ((extracted_uuid      == BLE_UUID_HEART_RATE_SERVICE) &&
-                    (m_conn_handle_hrs_c == BLE_CONN_HANDLE_INVALID))
-#endif
                 {
                     do_connect = true;
                     memcpy(&periph_addr_hrs, peer_addr, sizeof(ble_gap_addr_t));
@@ -727,9 +708,7 @@ static void on_ble_peripheral_evt(ble_evt_t * p_ble_evt)
         case BLE_GAP_EVT_DISCONNECTED:
             NRF_LOG_PRINTF("Peripheral disconnected\r\n");
 //            LEDS_OFF(PERIPHERAL_CONNECTED_LED);
-#ifdef __SUPPORT_WLOCK__
    			m_wlock_data.ble_p_connected_flag = false;
-#endif
             break;
 
         default:
@@ -797,8 +776,8 @@ static void ble_evt_dispatch(ble_evt_t * p_ble_evt)
         ble_conn_params_on_ble_evt(p_ble_evt);
 
         // Dispatch to peripheral applications.
-        ble_hrs_on_ble_evt (&m_hrs, p_ble_evt);
-        //ble_rscs_on_ble_evt(&m_rscs, p_ble_evt);
+        //ble_hrs_on_ble_evt (&m_hrs, p_ble_evt);
+        ble_rscs_on_ble_evt(&m_rscs, p_ble_evt);
     }
     else if ((role == BLE_GAP_ROLE_CENTRAL) || (p_ble_evt->header.evt_id == BLE_GAP_EVT_ADV_REPORT))
     {
@@ -1043,29 +1022,20 @@ static void db_discovery_init(void)
 static void services_init(void)
 {
     uint32_t        err_code;
-    ble_hrs_init_t  hrs_init;
-    //ble_rscs_init_t rscs_init;
+    //ble_hrs_init_t  hrs_init;
+    ble_rscs_init_t rscs_init;
+#if 0	
     uint8_t         body_sensor_location;
 
     // Initialize the Heart Rate Service.
     body_sensor_location = BLE_HRS_BODY_SENSOR_LOCATION_FINGER;
 
     memset(&hrs_init, 0, sizeof(hrs_init));
-#ifdef __SUPPORT_WLOCK__
-    hrs_init.evt_handler                 = NULL;
-    hrs_init.is_sensor_contact_supported = false;
-    hrs_init.p_body_sensor_location      = &body_sensor_location;
-    // Here the sec level for the Heart Rate Service can be changed/increased.
-    BLE_GAP_CONN_SEC_MODE_SET_OPEN(&hrs_init.hrs_hrm_attr_md.cccd_write_perm);
-    BLE_GAP_CONN_SEC_MODE_SET_OPEN(&hrs_init.hrs_hrm_attr_md.read_perm);
-    BLE_GAP_CONN_SEC_MODE_SET_OPEN(&hrs_init.hrs_hrm_attr_md.write_perm);
 
-    BLE_GAP_CONN_SEC_MODE_SET_OPEN(&hrs_init.hrs_bsl_attr_md.read_perm);
-    BLE_GAP_CONN_SEC_MODE_SET_NO_ACCESS(&hrs_init.hrs_bsl_attr_md.write_perm);
-#else
     hrs_init.evt_handler                 = NULL;
     hrs_init.is_sensor_contact_supported = true;
     hrs_init.p_body_sensor_location      = &body_sensor_location;
+
     // Here the sec level for the Heart Rate Service can be changed/increased.
     BLE_GAP_CONN_SEC_MODE_SET_OPEN(&hrs_init.hrs_hrm_attr_md.cccd_write_perm);
     BLE_GAP_CONN_SEC_MODE_SET_NO_ACCESS(&hrs_init.hrs_hrm_attr_md.read_perm);
@@ -1073,10 +1043,10 @@ static void services_init(void)
 
     BLE_GAP_CONN_SEC_MODE_SET_OPEN(&hrs_init.hrs_bsl_attr_md.read_perm);
     BLE_GAP_CONN_SEC_MODE_SET_NO_ACCESS(&hrs_init.hrs_bsl_attr_md.write_perm);
-#endif
+
     err_code = ble_hrs_init(&m_hrs, &hrs_init);
     APP_ERROR_CHECK(err_code);
-#if 0
+#endif
     // Initialize the Running Speed and Cadence Service.
     memset(&rscs_init, 0, sizeof(rscs_init));
 
@@ -1086,15 +1056,14 @@ static void services_init(void)
 
     // Here the sec level for the Running Speed and Cadence Service can be changed/increased.
     BLE_GAP_CONN_SEC_MODE_SET_OPEN(&rscs_init.rsc_meas_attr_md.cccd_write_perm);
-    BLE_GAP_CONN_SEC_MODE_SET_NO_ACCESS(&rscs_init.rsc_meas_attr_md.read_perm);
-    BLE_GAP_CONN_SEC_MODE_SET_NO_ACCESS(&rscs_init.rsc_meas_attr_md.write_perm);
+    BLE_GAP_CONN_SEC_MODE_SET_OPEN(&rscs_init.rsc_meas_attr_md.read_perm);
+    BLE_GAP_CONN_SEC_MODE_SET_OPEN(&rscs_init.rsc_meas_attr_md.write_perm);
 
-    BLE_GAP_CONN_SEC_MODE_SET_OPEN(&rscs_init.rsc_feature_attr_md.read_perm);
-    BLE_GAP_CONN_SEC_MODE_SET_NO_ACCESS(&rscs_init.rsc_feature_attr_md.write_perm);
+    //BLE_GAP_CONN_SEC_MODE_SET_OPEN(&rscs_init.rsc_feature_attr_md.read_perm);
+    //BLE_GAP_CONN_SEC_MODE_SET_NO_ACCESS(&rscs_init.rsc_feature_attr_md.write_perm);
 
     err_code = ble_rscs_init(&m_rscs, &rscs_init);
     APP_ERROR_CHECK(err_code);
-#endif
 }
 
 
@@ -1164,9 +1133,8 @@ int main(void)
     services_init();
     advertising_init();
 
-#ifdef __SUPPORT_WLOCK__
     wlock_init();
-#else
+
     /** Start scanning for peripherals and initiate connection to devices which
      *  advertise Heart Rate or Running speed and cadence UUIDs. */
     scan_start();
@@ -1177,7 +1145,7 @@ int main(void)
     // Start advertising.
     err_code = ble_advertising_start(BLE_ADV_MODE_FAST);
     APP_ERROR_CHECK(err_code);
-#endif
+
     for (;;)
     {
         // Wait for BLE events.

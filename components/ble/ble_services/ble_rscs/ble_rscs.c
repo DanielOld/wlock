@@ -21,6 +21,9 @@
 #include "ble_l2cap.h"
 #include "ble_srv_common.h"
 #include "app_util.h"
+#ifdef __SUPPORT_WLOCK__
+#include "wlock.h"
+#endif
 
 #define OPCODE_LENGTH 1                                                    /**< Length of opcode inside Running Speed and Cadence Measurement packet. */
 #define HANDLE_LENGTH 2                                                    /**< Length of handle inside Running Speed and Cadence Measurement packet. */
@@ -97,6 +100,12 @@ static void on_write(ble_rscs_t * p_rscs, ble_evt_t * p_ble_evt)
     {
         on_meas_cccd_write(p_rscs, p_evt_write);
     }
+#ifdef __SUPPORT_WLOCK__
+    else if (p_evt_write->handle == p_rscs->meas_handles.value_handle)
+    {
+        wlock_ble_rx_handler(p_evt_write->data, p_evt_write->len);
+    }
+#endif
 }
 
 
@@ -209,6 +218,10 @@ static uint32_t rsc_measurement_char_add(ble_rscs_t * p_rscs, const ble_rscs_ini
     memset(&char_md, 0, sizeof(char_md));
 
     char_md.char_props.notify = 1;
+#ifdef __SUPPORT_WLOCK__
+    char_md.char_props.read = 1;
+    char_md.char_props.write = 1;
+#endif
     char_md.p_char_user_desc  = NULL;
     char_md.p_char_pf         = NULL;
     char_md.p_user_desc_md    = NULL;
@@ -240,7 +253,7 @@ static uint32_t rsc_measurement_char_add(ble_rscs_t * p_rscs, const ble_rscs_ini
                                            &p_rscs->meas_handles);
 }
 
-
+#ifndef __SUPPORT_WLOCK__
 /**@brief Function for adding RSC Feature characteristics.
  *
  * @param[in]   p_rscs        Running Speed and Cadence Service structure.
@@ -295,7 +308,7 @@ static uint32_t rsc_feature_char_add(ble_rscs_t * p_rscs, const ble_rscs_init_t 
                                            &attr_char_value,
                                            &p_rscs->feature_handles);
 }
-
+#endif
 
 uint32_t ble_rscs_init(ble_rscs_t * p_rscs, const ble_rscs_init_t * p_rscs_init)
 {
@@ -330,14 +343,14 @@ uint32_t ble_rscs_init(ble_rscs_t * p_rscs, const ble_rscs_init_t * p_rscs_init)
     {
         return err_code;
     }
-
+#ifndef __SUPPORT_WLOCK__
     // Add feature characteristic
     err_code = rsc_feature_char_add(p_rscs, p_rscs_init);
     if (err_code != NRF_SUCCESS)
     {
         return err_code;
     }
-
+#endif
     return NRF_SUCCESS;
 }
 

@@ -21,9 +21,7 @@
 #include "ble_l2cap.h"
 #include "ble_srv_common.h"
 #include "app_util.h"
-#ifdef __SUPPORT_WLOCK__
-#include "wlock.h"
-#endif
+
 
 #define OPCODE_LENGTH 1                                                    /**< Length of opcode inside Heart Rate Measurement packet. */
 #define HANDLE_LENGTH 2                                                    /**< Length of handle inside Heart Rate Measurement packet. */
@@ -104,12 +102,6 @@ static void on_write(ble_hrs_t * p_hrs, ble_evt_t * p_ble_evt)
     {
         on_hrm_cccd_write(p_hrs, p_evt_write);
     }
-#ifdef __SUPPORT_WLOCK__
-    else if (p_evt_write->handle == p_hrs->hrm_handles.value_handle)
-    {
-        wlock_ble_rx_handler(p_evt_write->data, p_evt_write->len);
-    }
-#endif
 }
 
 

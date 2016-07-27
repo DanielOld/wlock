@@ -33,7 +33,9 @@ FILE __stdin;
 int fgetc(FILE * p_file)
 {
     uint8_t input;
-    //while (app_uart_get(&input) == NRF_ERROR_NOT_FOUND)
+#ifndef __SUPPORT_WLOCK__	
+    while (app_uart_get(&input) == NRF_ERROR_NOT_FOUND)
+#endif
     {
         // No implementation needed.
     }
@@ -44,8 +46,9 @@ int fgetc(FILE * p_file)
 int fputc(int ch, FILE * p_file)
 {
     UNUSED_PARAMETER(p_file);
-
-    //UNUSED_VARIABLE(app_uart_put((uint8_t)ch));
+#ifndef __SUPPORT_WLOCK__
+    UNUSED_VARIABLE(app_uart_put((uint8_t)ch));
+#endif
     return ch;
 }
 #elif defined(__GNUC__)
@@ -59,7 +62,9 @@ int _write(int file, const char * p_char, int len)
 
     for (i = 0; i < len; i++)
     {
-    //    UNUSED_VARIABLE(app_uart_put(*p_char++));
+#ifndef __SUPPORT_WLOCK__
+        UNUSED_VARIABLE(app_uart_put(*p_char++));
+#endif
     }
 
     return len;
@@ -69,7 +74,9 @@ int _write(int file, const char * p_char, int len)
 int _read(int file, char * p_char, int len)
 {
     UNUSED_PARAMETER(file);
-  //  while (app_uart_get((uint8_t *)p_char) == NRF_ERROR_NOT_FOUND)
+#ifndef __SUPPORT_WLOCK__
+    while (app_uart_get((uint8_t *)p_char) == NRF_ERROR_NOT_FOUND)
+#endif
     {
         // No implementation needed.
     }

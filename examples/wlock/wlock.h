@@ -5,7 +5,7 @@
 #include <stdint.h>
 #include <stdbool.h>
 
-#define WLOCK_MAX_ENDNODE				50
+#define WLOCK_MAX_ENDNODE				10
 
 typedef struct
 {
@@ -16,9 +16,8 @@ typedef enum
 {
     WLOCK_STATE_IDLE,
 	WLOCK_STATE_AWARE,
-	WLOCK_STATE_BLE_CONNECTING,
+	WLOCK_STATE_BLE_SCANNING,
 	WLOCK_STATE_BLE_CONNECTED,
-	WLOCK_STATE_BLE_DISCONNECTED,
 	WLOCK_STATE_WARNING,
 	WLOCK_STATE_LVD
 } wlock_state_t;
@@ -30,17 +29,17 @@ typedef enum
 } wlock_power_on_cause_t;
 
 
-#define BLE_WLOCK_TIMEOUT               3 /* sec */  
-#define BLE_WLOCK_RSSI				  (-70) /* dBm */
-#if 1
+#define WLOCK_BLE_SCAN_TIMEOUT          3 /* sec */  
+#define WLOCK_BLE_RSSI				  (-70) /* dBm */
+#if 0
 /* input GPIO */
 #define GPIO_CHARGE_STATE 				4
 #define GPIO_LOW_VOLTAGE_DETECT 		13
 #define GPIO_INFRARED_TRIGGER			16
 #define GPIO_VIBRATE_TRIGGER			15
 #define GPIO_LOCK_PICKING				14 
-#define GPIO_ERASE_KEY					17
 #define GPIO_GSENSOR_INT				24
+#define GPIO_ERASE_KEY					17
 
 /* output GPIO */
 #define GPIO_LED1						18  
@@ -55,24 +54,31 @@ typedef enum
 #define TX_PIN_NUMBER  2
 
 #else /* for development board pca10028 */
-/* input GPIO */
 #define GPIO_CHARGE_STATE 				17
-#define GPIO_LOW_VOLTAGE_DETECT 		18 
+#define GPIO_LOW_VOLTAGE_DETECT 		18
 #define GPIO_INFRARED_TRIGGER			19
 #define GPIO_VIBRATE_TRIGGER			20
 #define GPIO_LOCK_PICKING				21 
+#define GPIO_GSENSOR_INT				22
+#define GPIO_ERASE_KEY					23
 
 /* output GPIO */
-#define GPIO_LED1						24  
-#define GPIO_SPERAKER					23
-//#define GPIO_INFRARED_POWER_ON			9 /* Control infrared power */
-#define GPIO_GSM_LOW_POWER_INDICATE		22  /* Indicate low power state */
-#define GPIO_GSM_POWER_ON				28 /* Open V_BAT */
-#define GPIO_GSM_POWER_KEY				29 /* GSM power key */
+#define GPIO_LED1						3  
+#define GPIO_SPERAKER					4
+#define GPIO_INFRARED_POWER_ON			5 /* Control infrared power */
+#define GPIO_GSM_LOW_POWER_INDICATE		6  /* Indicate low power state */
+#define GPIO_GSM_POWER_ON				7 /* Open V_BAT */
+#define GPIO_GSM_POWER_KEY				8 /* GSM power key */
+
+/* uart GPIO */
+#define RX_PIN_NUMBER  1
+#define TX_PIN_NUMBER  2
 #endif
 /* input */
 #define BOOL_IS_CHR						1
 #define BOOL_IS_LVD						0
+#define BOOL_IS_ERASE					0
+
 /* output */
 #define BOOL_LED_ON						1
 #define BOOL_LED_OFF					0
@@ -108,25 +114,19 @@ typedef struct
     /* gsm */
 	int32_t gsm_power_key_interval;
 
-	/* for charge */
-    bool in_charge_flag; /* in charge flag */
-
     /* aware */
 	bool aware_flag; /* get infrared or vibrate event for the first time */
 	int32_t aware_interval;
-
-	/* ble */
-	//bool ble_connected_flag;
-	//bool ble_disconnected_flag;
-	//bool ble_scan_timeout_flag;
-	bool ble_c_connected_flag; /*central*/
-	bool ble_p_connected_flag; /*peripheral*/
-
 
 	/* warning */
     bool warning_flag; /* infrared and vibrate warning */
 	int32_t warning_filter;   /* filter count for infrared and vibrate*/
 	int32_t warning_interval;
+
+    bool warning_event_enabled;
+	
+	bool ble_c_connected_flag; /*central*/
+	bool ble_p_connected_flag; /*peripheral*/
 } wlock_data_t;
 
 uint32_t wlock_init(void);

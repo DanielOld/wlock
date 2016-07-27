@@ -11,7 +11,7 @@
  */
 #ifndef PCA10028_H
 #define PCA10028_H
-#if 0
+#ifndef __SUPPORT_WLOCK__
 
 // LEDs definitions for PCA10028
 #define LEDS_NUMBER    4
@@ -63,10 +63,10 @@
 
 #define BUTTONS_MASK   0x001E0000
 
-#define RX_PIN_NUMBER  1
-#define TX_PIN_NUMBER  2
-#define CTS_PIN_NUMBER 3
-#define RTS_PIN_NUMBER 4
+#define RX_PIN_NUMBER  11
+#define TX_PIN_NUMBER  9
+#define CTS_PIN_NUMBER 10
+#define RTS_PIN_NUMBER 8
 #define HWFC           true
 
 #define SPIS_MISO_PIN  28    // SPI MISO signal. 
