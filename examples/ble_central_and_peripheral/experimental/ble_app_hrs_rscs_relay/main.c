@@ -697,6 +697,8 @@ static void on_ble_central_evt(const ble_evt_t * const p_ble_evt)
  */
 static void on_ble_peripheral_evt(ble_evt_t * p_ble_evt)
 {
+    ret_code_t err_code;
+
     switch (p_ble_evt->header.evt_id)
     {
         case BLE_GAP_EVT_CONNECTED:
@@ -709,6 +711,8 @@ static void on_ble_peripheral_evt(ble_evt_t * p_ble_evt)
             NRF_LOG_PRINTF("Peripheral disconnected\r\n");
 //            LEDS_OFF(PERIPHERAL_CONNECTED_LED);
    			m_wlock_data.ble_p_connected_flag = false;
+            err_code = ble_advertising_start(BLE_ADV_MODE_FAST);
+            APP_ERROR_CHECK(err_code);
             break;
 
         default:

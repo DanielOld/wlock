@@ -5,7 +5,7 @@
 #include <stdint.h>
 #include <stdbool.h>
 
-#define WLOCK_MAX_ENDNODE				10
+#define WLOCK_MAX_ENDNODE				50
 
 typedef struct
 {
@@ -28,10 +28,9 @@ typedef enum
 	WLOCK_GSM_POWER_ON_LVD
 } wlock_power_on_cause_t;
 
-
 #define WLOCK_BLE_SCAN_TIMEOUT          3 /* sec */  
-#define WLOCK_BLE_RSSI				  (-70) /* dBm */
-#if 0
+#define WLOCK_BLE_RSSI				  (-60) /* dBm */
+#if 1
 /* input GPIO */
 #define GPIO_CHARGE_STATE 				4
 #define GPIO_LOW_VOLTAGE_DETECT 		13
@@ -39,7 +38,7 @@ typedef enum
 #define GPIO_VIBRATE_TRIGGER			15
 #define GPIO_LOCK_PICKING				14 
 #define GPIO_GSENSOR_INT				24
-#define GPIO_ERASE_KEY					17
+//#define GPIO_ERASE_KEY					17
 
 /* output GPIO */
 #define GPIO_LED1						18  
@@ -60,7 +59,7 @@ typedef enum
 #define GPIO_VIBRATE_TRIGGER			20
 #define GPIO_LOCK_PICKING				21 
 #define GPIO_GSENSOR_INT				22
-#define GPIO_ERASE_KEY					23
+//#define GPIO_ERASE_KEY					23
 
 /* output GPIO */
 #define GPIO_LED1						3  

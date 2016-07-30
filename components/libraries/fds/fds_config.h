@@ -28,7 +28,11 @@
 /**@brief Configures the number of physical flash pages to use. Out of the total, one is reserved
  *        for garbage collection, hence, two pages is the minimum: one for the application data
  *        and one for the system. */
+#ifdef __SUPPORT_WLOCK__
+#define FDS_MAX_PAGES               (3)
+#else
 #define FDS_MAX_PAGES               (2)
+#endif
 /**@brief Configures the maximum number of callbacks which can be registred. */
 #define FDS_MAX_USERS               (10)
 

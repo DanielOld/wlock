@@ -22,7 +22,7 @@
 #include "nrf_delay.h"
 #include "ble_advertising.h"
 #include "nrf_sdm.h"
-
+#include "fds.h"
 
 #ifdef __SUPPORT_WLOCK__
 #include "wlock.h"
@@ -34,12 +34,6 @@ extern bool twi_master_init(void);
 
 wlock_data_t m_wlock_data;
 APP_TIMER_DEF(m_wlock_sec_timer_id);  
-
-#define ENDNODE_MAPPING_SIZE (sizeof(wlock_endnode_t)*WLOCK_MAX_ENDNODE)
-
-static wlock_endnode_t g_endnode_mapping[WLOCK_MAX_ENDNODE];
-static pstorage_handle_t       m_storage_handle;   
-
 extern void scan_start(void);
 
 /*
@@ -50,7 +44,7 @@ static void wlock_sleep_mode_enter(void)
     APP_ERROR_CHECK(err_code);
 }
 */
-
+#if 0
 static void wlock_pstorage_callback_handler(pstorage_handle_t * p_handle,
                                       uint8_t             op_code,
                                       uint32_t            result,
@@ -94,6 +88,8 @@ static bool wlock_endnode_store(void)
     err_code = pstorage_block_identifier_get(&m_storage_handle, 0, &block_handle);
     if (err_code == NRF_SUCCESS)
     {
+       wlock_endnode_clear();
+	   
        err_code = pstorage_store(&block_handle,
                             (uint8_t *)g_endnode_mapping,
                             ENDNODE_MAPPING_SIZE,
@@ -118,7 +114,7 @@ bool wlock_endnode_clear(void)
     if (err_code == NRF_SUCCESS)
     {
 
-        memset(g_endnode_mapping, 0x00, ENDNODE_MAPPING_SIZE);
+        //memset(g_endnode_mapping, 0x00, ENDNODE_MAPPING_SIZE);
         err_code = pstorage_clear(&block_handle, ENDNODE_MAPPING_SIZE);
     }
 
@@ -150,7 +146,7 @@ static bool wlock_endnode_add(wlock_endnode_t endnode)
 {
     uint32_t i;
 	uint32_t j;
-    ret_code_t err_code = NRF_ERROR_INTERNAL;
+    bool ret = false;
 
 	for(i=0; i<WLOCK_MAX_ENDNODE; i++)
 	{
@@ -162,7 +158,7 @@ static bool wlock_endnode_add(wlock_endnode_t endnode)
 		   && (g_endnode_mapping[i].addr[5] == 0xff))
 	    {
 	        memcpy(&g_endnode_mapping[i], &endnode, sizeof(wlock_endnode_t));
-			err_code = wlock_endnode_store();
+			ret = wlock_endnode_store();
 			break;
 	    }
 	}
@@ -174,17 +170,10 @@ static bool wlock_endnode_add(wlock_endnode_t endnode)
             memcpy(&g_endnode_mapping[j-1], &g_endnode_mapping[j], sizeof(wlock_endnode_t));
         }
         memcpy(&g_endnode_mapping[WLOCK_MAX_ENDNODE-1], &endnode, sizeof(wlock_endnode_t));
-		err_code = wlock_endnode_store();
+		ret = wlock_endnode_store();
     }
 
-    if(err_code == NRF_SUCCESS)
-	{
-	    return true;
-	}
-	else
-	{
-	    return false;
-	}
+	return ret;
 }
 
 bool wlock_endnode_init(bool erase)
@@ -213,12 +202,174 @@ bool wlock_endnode_init(bool erase)
 	    }
 		else
 		{
+	        wlock_endnode_load();
 		    ret = true;
 		}
 	}
 	return ret;
 }
+#else
+static wlock_endnode_t g_endnode_mapping[WLOCK_MAX_ENDNODE];
 
+#define WLOCK_ENDNODE_INSTANCE_ID 0x3abc
+#define WLOCK_ENDNODE_TYPE_ID 0x7abc
+#define ENDNODE_MAPPING_SIZE (sizeof(wlock_endnode_t)*WLOCK_MAX_ENDNODE)
+#define WLOCK_ENDNODE_DEFAULT_CHAR 0x00
+bool m_endnode_completed = false;
+
+static void wlock_endnode_evt_handler(ret_code_t       result,
+                            fds_cmd_id_t     cmd,
+                            fds_record_id_t  record_id,
+                            fds_record_key_t record_key)
+{
+    if (cmd == FDS_CMD_GC)
+    {
+        m_endnode_completed = true;
+    }
+}
+
+
+static bool wlock_endnode_load(void)
+{
+    fds_find_token_t find_tok;
+    fds_record_desc_t record_desc;
+    fds_record_t record;
+	
+    fds_find(WLOCK_ENDNODE_TYPE_ID, WLOCK_ENDNODE_INSTANCE_ID, &record_desc, &find_tok);
+    fds_open(&record_desc, &record);
+	// No need to keep it open, since we are not reading.
+    memcpy(g_endnode_mapping, (wlock_endnode_t*)record.p_data, ENDNODE_MAPPING_SIZE);
+    fds_close(&record_desc);
+    return true;
+}
+
+
+
+static bool wlock_endnode_store(void)
+{
+    fds_record_desc_t   record_desc;
+    fds_record_key_t    record_key;
+    fds_record_chunk_t  chunk;
+    fds_find_token_t find_tok;
+
+    if (fds_find(WLOCK_ENDNODE_TYPE_ID, WLOCK_ENDNODE_INSTANCE_ID, 
+		&record_desc, &find_tok) == NRF_SUCCESS)
+    {
+        fds_clear(&record_desc);
+		fds_gc();
+    }
+    chunk.length_words = ENDNODE_MAPPING_SIZE/4;
+	chunk.p_data = g_endnode_mapping;
+	record_key.instance = WLOCK_ENDNODE_INSTANCE_ID;
+	record_key.type = WLOCK_ENDNODE_TYPE_ID;
+    // Request write
+    fds_write(&record_desc, record_key, 1, &chunk);
+
+    return true;
+}
+
+bool wlock_endnode_clear(void)
+{
+    memset(g_endnode_mapping, WLOCK_ENDNODE_DEFAULT_CHAR, ENDNODE_MAPPING_SIZE);
+    wlock_endnode_store();
+	
+    return true;
+}
+
+static bool wlock_endnode_match(wlock_endnode_t endnode)
+{
+    uint32_t i;
+
+	for(i=0; i<WLOCK_MAX_ENDNODE; i++)
+	{
+	    if(memcmp(&g_endnode_mapping[i], &endnode, sizeof(wlock_endnode_t)) == 0)
+	    {
+	        return true;
+	    }
+	}
+    return false;
+}
+
+static bool wlock_endnode_add(wlock_endnode_t endnode)
+{
+    uint32_t i;
+	uint32_t j;
+    bool ret = false;
+
+	for(i=0; i<WLOCK_MAX_ENDNODE; i++)
+	{
+	    if((g_endnode_mapping[i].addr[0] == WLOCK_ENDNODE_DEFAULT_CHAR)
+		   && (g_endnode_mapping[i].addr[1] == WLOCK_ENDNODE_DEFAULT_CHAR)
+		   && (g_endnode_mapping[i].addr[2] == WLOCK_ENDNODE_DEFAULT_CHAR)
+		   && (g_endnode_mapping[i].addr[3] == WLOCK_ENDNODE_DEFAULT_CHAR)
+		   && (g_endnode_mapping[i].addr[4] == WLOCK_ENDNODE_DEFAULT_CHAR)
+		   && (g_endnode_mapping[i].addr[5] == WLOCK_ENDNODE_DEFAULT_CHAR))
+	    {
+	        memcpy(&g_endnode_mapping[i], &endnode, sizeof(wlock_endnode_t));
+			ret = wlock_endnode_store();
+			break;
+	    }
+	}
+
+    if (i == WLOCK_MAX_ENDNODE) // replace the oldest one
+    {
+        for(j=1; j< WLOCK_MAX_ENDNODE; j++)
+        {
+            memcpy(&g_endnode_mapping[j-1], &g_endnode_mapping[j], sizeof(wlock_endnode_t));
+        }
+        memcpy(&g_endnode_mapping[WLOCK_MAX_ENDNODE-1], &endnode, sizeof(wlock_endnode_t));
+		ret = wlock_endnode_store();
+    }
+
+	return ret;
+}
+
+bool wlock_endnode_init()
+{
+    fds_find_token_t find_tok;
+    fds_record_desc_t record_desc;
+    fds_record_key_t    record_key;
+    fds_record_chunk_t  chunk;
+    ret_code_t retval;
+	bool ret = false;
+    fds_cb_t cb;
+	
+    cb = wlock_endnode_evt_handler;
+    retval = fds_register(cb);
+    if(retval != NRF_SUCCESS)
+    {
+        return false;
+    }
+
+    retval = fds_init();
+    if(retval != NRF_SUCCESS)
+    {
+        return false;
+    }
+
+    memset(g_endnode_mapping, WLOCK_ENDNODE_DEFAULT_CHAR, ENDNODE_MAPPING_SIZE);
+
+	
+    if (fds_find(WLOCK_ENDNODE_TYPE_ID, WLOCK_ENDNODE_INSTANCE_ID, 
+		&record_desc, &find_tok) == NRF_SUCCESS)
+    {
+	    ret = wlock_endnode_load();
+
+    }
+	else
+	{
+       chunk.length_words = ENDNODE_MAPPING_SIZE/4;
+	    chunk.p_data = g_endnode_mapping;
+	    record_key.instance = WLOCK_ENDNODE_INSTANCE_ID;
+	    record_key.type = WLOCK_ENDNODE_TYPE_ID;
+        // Request write
+        fds_write(&record_desc, record_key, 1, &chunk);
+		ret = true;
+	}
+	
+	return ret;
+}
+#endif
 static void wlock_gpio_set(nrf_drv_gpiote_pin_t pin, bool state)
 {
     if(state) {
@@ -546,6 +697,7 @@ uint32_t wlock_init(void)
     }
     twi_master_init();
 	kxcjk1013_init();
+    wlock_endnode_init();
 
     /* charge state */
     config.is_watcher = false;
@@ -590,18 +742,6 @@ uint32_t wlock_init(void)
     {
         return err_code;
     }
-
-    /* erase key */
-    config.is_watcher = false;
-	config.hi_accuracy = false;
-	config.sense = NRF_GPIOTE_POLARITY_HITOLO;
-    config.pull = NRF_GPIO_PIN_PULLUP;
-    err_code = nrf_drv_gpiote_in_init(GPIO_ERASE_KEY, &config, wlock_gpio_event_handler);
-    if (err_code != NRF_SUCCESS)
-    {
-        return err_code;
-    }
-
     /* low power detect */
     config.is_watcher = false;
 	config.hi_accuracy = false;
@@ -678,16 +818,6 @@ uint32_t wlock_init(void)
         |(GPIO_PIN_CNF_DIR_Output << GPIO_PIN_CNF_DIR_Pos);  
     wlock_gpio_set(GPIO_GSM_POWER_KEY, BOOL_GSM_PWRKEY_OFF);
 
-    if (wlock_gpio_get(GPIO_ERASE_KEY) == BOOL_IS_ERASE)
-    {
-        wlock_endnode_init(true);
-    }
-	else
-	{
-        wlock_endnode_init(false);
-	}
-    wlock_endnode_load();
-
     memset(&m_wlock_data, 0, sizeof(wlock_data_t));
 
 	if ((wlock_gpio_get(GPIO_LOW_VOLTAGE_DETECT) == BOOL_IS_LVD)
@@ -703,7 +833,6 @@ uint32_t wlock_init(void)
     nrf_drv_gpiote_in_event_enable(GPIO_LOCK_PICKING, true);
     nrf_drv_gpiote_in_event_enable(GPIO_LOW_VOLTAGE_DETECT, true); 
     nrf_drv_gpiote_in_event_enable(GPIO_GSENSOR_INT, true); 
-    nrf_drv_gpiote_in_event_disable(GPIO_ERASE_KEY);
 
     err_code =
         app_timer_create(&m_wlock_sec_timer_id, APP_TIMER_MODE_REPEATED, wlock_sec_timer_handler);
@@ -805,10 +934,12 @@ void wlock_ble_rx_handler(uint8_t *data, uint16_t len)
                 buf[4] = 0; //success
                 buf[5] = (uint8_t)(PRO_TAIL&0xff);
                 buf[6] = (uint8_t)((PRO_TAIL>>8)&0xff);
-                if(wlock_ble_tx_handler(buf, 7))
-                {
-       			    m_wlock_data.ble_p_connected_flag = true;
-                }
+                //if(wlock_ble_tx_handler(buf, 7))
+                //{
+       			    //m_wlock_data.ble_p_connected_flag = true;
+                //}
+							wlock_ble_tx_handler(buf, 7);
+							m_wlock_data.ble_p_connected_flag = true;
             }
 			else
 			{

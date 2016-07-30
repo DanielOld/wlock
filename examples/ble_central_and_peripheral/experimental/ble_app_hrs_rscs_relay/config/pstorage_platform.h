@@ -46,7 +46,7 @@ static __INLINE uint32_t pstorage_flash_page_end()
 
 #define PSTORAGE_FLASH_PAGE_END pstorage_flash_page_end()
 #ifdef __SUPPORT_WLOCK__
-#define PSTORAGE_NUM_OF_PAGES       2                                                           /**< Number of flash pages allocated for the pstorage module excluding the swap page, configurable based on system requirements. */
+#define PSTORAGE_NUM_OF_PAGES       3                                                           /**< Number of flash pages allocated for the pstorage module excluding the swap page, configurable based on system requirements. */
 #else
 #define PSTORAGE_NUM_OF_PAGES       1                                                           /**< Number of flash pages allocated for the pstorage module excluding the swap page, configurable based on system requirements. */
 #endif

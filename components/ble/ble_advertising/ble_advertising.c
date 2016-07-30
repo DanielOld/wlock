@@ -178,7 +178,7 @@ uint32_t ble_advertising_start(ble_adv_mode_t advertising_mode)
     ble_gap_adv_params_t adv_params;
 
     m_adv_mode_current = advertising_mode;
-
+#ifndef __SUPPORT_WLOCK__
     uint32_t             count = 0;
 
     // Verify if there are any pending flash operations. If so, delay starting advertising until
@@ -199,7 +199,7 @@ uint32_t ble_advertising_start(ble_adv_mode_t advertising_mode)
         m_advertising_start_pending = true;
         return NRF_SUCCESS;
     }
-
+#endif
     // Fetch the peer address.
     ble_advertising_peer_address_clear();
     if (  ((m_adv_modes_config.ble_adv_directed_enabled)
