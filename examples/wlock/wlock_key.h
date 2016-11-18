@@ -5,8 +5,9 @@
 #include <stdint.h>
 #include <stdbool.h>
 
-#define GPIO_KEY		 				0
-#define GPIO_LED1						19  
+#define GPIO_KEY		 				11
+#define GPIO_LED1						12  
+#define GPIO_LED2						13  
 #define BOOL_LED_ON						1
 #define BOOL_LED_OFF					0
 

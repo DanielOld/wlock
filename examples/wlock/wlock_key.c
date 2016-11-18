@@ -42,12 +42,18 @@ static void wlock_key_gpio_event_handler(nrf_drv_gpiote_pin_t pin, nrf_gpiote_po
 		case GPIO_KEY:
 		if(m_ble_connected == false)
 		{
-		    err_code = ble_advertising_start(BLE_ADV_MODE_FAST);
-    		APP_ERROR_CHECK(err_code);
+		      err_code = ble_advertising_start(BLE_ADV_MODE_FAST);
+    		  APP_ERROR_CHECK(err_code);
+    	    //wlock_key_gpio_set(GPIO_LED1, BOOL_LED_ON);
+   	    	//nrf_delay_ms(200);
+    	    //wlock_key_gpio_set(GPIO_LED1, BOOL_LED_OFF);
 		}
-	    wlock_key_gpio_set(GPIO_LED1, BOOL_LED_ON);
-   		nrf_delay_ms(200);
-    	wlock_key_gpio_set(GPIO_LED1, BOOL_LED_OFF);
+		else
+		{
+    	    wlock_key_gpio_set(GPIO_LED2, BOOL_LED_ON);
+   	    	nrf_delay_ms(200);
+    	    wlock_key_gpio_set(GPIO_LED2, BOOL_LED_OFF);
+		}
 		default:
 			break;
     	}
@@ -87,9 +93,18 @@ uint32_t wlock_key_init(void)
         |(GPIO_PIN_CNF_INPUT_Disconnect << GPIO_PIN_CNF_INPUT_Pos) 
         |(GPIO_PIN_CNF_DIR_Output << GPIO_PIN_CNF_DIR_Pos);  
 	
+    /* LED2 */
+    NRF_GPIO->PIN_CNF[GPIO_LED2] = (GPIO_PIN_CNF_SENSE_Disabled << GPIO_PIN_CNF_SENSE_Pos) 
+        |(GPIO_PIN_CNF_DRIVE_H0H1 << GPIO_PIN_CNF_DRIVE_Pos)    
+        |(GPIO_PIN_CNF_PULL_Disabled << GPIO_PIN_CNF_PULL_Pos)  
+        |(GPIO_PIN_CNF_INPUT_Disconnect << GPIO_PIN_CNF_INPUT_Pos) 
+        |(GPIO_PIN_CNF_DIR_Output << GPIO_PIN_CNF_DIR_Pos);  
+	
     wlock_key_gpio_set(GPIO_LED1, BOOL_LED_ON);
+    //wlock_key_gpio_set(GPIO_LED2, BOOL_LED_ON);
    	nrf_delay_ms(200);
     wlock_key_gpio_set(GPIO_LED1, BOOL_LED_OFF);
+    //wlock_key_gpio_set(GPIO_LED2, BOOL_LED_OFF);
 
     return err_code;
 }

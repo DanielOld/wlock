@@ -396,11 +396,47 @@ static bool wlock_ble_connected(void)
 	}
 }
 
+static bool wlock_in_charge_state(void)
+{
+    return (wlock_gpio_get(GPIO_CHARGE_STATE) == BOOL_IS_CHR);
+}
+
+static bool wlock_in_lvd_state(void)
+{
+    return (wlock_gpio_get(GPIO_LOW_VOLTAGE_DETECT) == BOOL_IS_LVD);
+}
+
 static void wlock_voice_aware(void)
 {
     int i,j;
 
+#if defined(GPIO_VIBRATE_TRIGGER)	
+    nrf_drv_gpiote_in_event_enable(GPIO_VIBRATE_TRIGGER, false);
+#endif
+    nrf_drv_gpiote_in_event_enable(GPIO_GSENSOR_INT, false);
 	for(i=0; i<2; i++)
+	{
+	    for(j=0; j<250; j++)
+	    {
+	        wlock_gpio_set(GPIO_SPERAKER, BOOL_SPEAKER_ON);
+        	nrf_delay_us(100);
+	        wlock_gpio_set(GPIO_SPERAKER, BOOL_SPEAKER_OFF);
+        	nrf_delay_us(200);
+	    }
+		nrf_delay_ms(500);
+	}
+#if defined(GPIO_VIBRATE_TRIGGER)	
+    nrf_drv_gpiote_in_event_enable(GPIO_VIBRATE_TRIGGER, true);
+#endif
+    kxcjk1013_interrupt_release();
+    nrf_drv_gpiote_in_event_enable(GPIO_GSENSOR_INT, true);
+}
+
+static void wlock_voice_startup(void)
+{
+    int i,j;
+	
+	for(i=0; i<1; i++)
 	{
 	    for(j=0; j<250; j++)
 	    {
@@ -461,30 +497,23 @@ static void wlock_led_toggle(void)
 		} 
 		else 
 		{
-		    wlock_gpio_set(GPIO_LED1, BOOL_LED_ON);
+		    wlock_gpio_set(GPIO_LED3, BOOL_LED_ON);
 			nrf_delay_ms(10);
-		    wlock_gpio_set(GPIO_LED1, BOOL_LED_OFF);
+		    wlock_gpio_set(GPIO_LED3, BOOL_LED_OFF);
 			led_on = true;
 		}
     }
 }
+
 static void wlock_gpio_event_handler(nrf_drv_gpiote_pin_t pin, nrf_gpiote_polarity_t action)
 {
     switch(pin) {
-		case GPIO_CHARGE_STATE:
-			if(wlock_gpio_get(GPIO_CHARGE_STATE) == BOOL_IS_CHR)
-			{
-			    m_wlock_data.lvd_flag = false;
-			}
-			else if(wlock_gpio_get(GPIO_LOW_VOLTAGE_DETECT) == BOOL_IS_LVD)
-			{
-			    m_wlock_data.lvd_flag = true;
-			}
-			break;
 		case GPIO_GSENSOR_INT:
 			   kxcjk1013_interrupt_release();
 		case GPIO_INFRARED_TRIGGER:
+#if defined(GPIO_VIBRATE_TRIGGER)	
 		case GPIO_VIBRATE_TRIGGER:
+#endif
 		case GPIO_LOCK_PICKING:
 			if (m_wlock_data.aware_flag == false) {
 				m_wlock_data.aware_flag = true;
@@ -498,12 +527,6 @@ static void wlock_gpio_event_handler(nrf_drv_gpiote_pin_t pin, nrf_gpiote_polari
 			{
 			    m_wlock_data.warning_filter++;
 			}
-			break;
-  		case GPIO_LOW_VOLTAGE_DETECT:
-	        if(wlock_gpio_get(GPIO_CHARGE_STATE) != BOOL_IS_CHR)
-        	{
-			    m_wlock_data.lvd_flag = true;
-        	}
 			break;
 		default:
 			break;
@@ -519,22 +542,22 @@ static void wlock_enable_warning_event(bool enable)
         m_wlock_data.warning_flag = false; 
 	    m_wlock_data.warning_filter = 0;
 	    m_wlock_data.warning_interval = 0;
-		m_wlock_data.warning_event_enabled = true;
-        wlock_gpio_set(GPIO_INFRARED_POWER_ON, BOOL_INFRARED_POWER_ON);
-		nrf_delay_ms(10);
         nrf_drv_gpiote_in_event_enable(GPIO_INFRARED_TRIGGER, true);
+#if defined(GPIO_VIBRATE_TRIGGER)	
         nrf_drv_gpiote_in_event_enable(GPIO_VIBRATE_TRIGGER, true);
+#endif
         nrf_drv_gpiote_in_event_enable(GPIO_LOCK_PICKING, true);
+	    kxcjk1013_interrupt_release();
         nrf_drv_gpiote_in_event_enable(GPIO_GSENSOR_INT, true);
     }
 	else
 	{
-		m_wlock_data.warning_event_enabled = true;
         nrf_drv_gpiote_in_event_enable(GPIO_INFRARED_TRIGGER, false);
+#if defined(GPIO_VIBRATE_TRIGGER)	
         nrf_drv_gpiote_in_event_enable(GPIO_VIBRATE_TRIGGER, false);
+#endif
         nrf_drv_gpiote_in_event_enable(GPIO_LOCK_PICKING, false);
         nrf_drv_gpiote_in_event_enable(GPIO_GSENSOR_INT, false);
-        wlock_gpio_set(GPIO_INFRARED_POWER_ON, BOOL_INFRARED_POWER_OFF);
 	}
 }
 static void wlock_sec_timer_handler(void * p_context)
@@ -547,6 +570,7 @@ static void wlock_sec_timer_handler(void * p_context)
         case WLOCK_STATE_IDLE:
 		    if (wlock_ble_connected())
 		    {
+		        wlock_enable_warning_event(false);
 			    m_wlock_data.wlock_state = WLOCK_STATE_BLE_CONNECTED;
 		    }
 			else if(m_wlock_data.aware_flag)
@@ -556,9 +580,14 @@ static void wlock_sec_timer_handler(void * p_context)
 				m_wlock_data.wlock_state = WLOCK_STATE_AWARE;
 			    wlock_voice_aware();
 			} 
-			else if(m_wlock_data.lvd_flag)
+			else if(wlock_in_charge_state())
 			{
-			    if(m_wlock_data.lvd_rewarning_interval <= 0)
+				m_wlock_data.lvd_warning_interval = 0; 
+				m_wlock_data.lvd_rewarning_interval = 0;
+			}
+			else if(wlock_in_lvd_state())
+			{
+			    if(m_wlock_data.lvd_rewarning_interval == 0)
 			    {
 					wlock_enable_warning_event(false);
 				    wlock_gsm_power_on(WLOCK_GSM_POWER_ON_LVD);
@@ -571,10 +600,16 @@ static void wlock_sec_timer_handler(void * p_context)
 				    m_wlock_data.lvd_rewarning_interval--;
 				}
 			}
+			else
+			{
+				m_wlock_data.lvd_warning_interval = 0; 
+				m_wlock_data.lvd_rewarning_interval = 0;
+			}
         break;
 		case WLOCK_STATE_AWARE:
 		    if (wlock_ble_connected())
 		    {
+		        wlock_enable_warning_event(false);
 			    m_wlock_data.wlock_state = WLOCK_STATE_BLE_CONNECTED;
 		    }
 			else if(m_wlock_data.warning_flag)
@@ -598,6 +633,7 @@ static void wlock_sec_timer_handler(void * p_context)
 		case WLOCK_STATE_BLE_SCANNING:
 		    if (wlock_ble_connected())
 			{
+			    wlock_enable_warning_event(false);
 			    m_wlock_data.wlock_state = WLOCK_STATE_BLE_CONNECTED;
 			}
 			else if(ble_scanning_timeout >= WLOCK_BLE_SCAN_TIMEOUT)
@@ -613,19 +649,15 @@ static void wlock_sec_timer_handler(void * p_context)
 			}
 		break;
 		case WLOCK_STATE_BLE_CONNECTED:
-			if(m_wlock_data.warning_event_enabled)
-			{
-			    wlock_enable_warning_event(false);
-			}
 			if(!wlock_ble_connected())
 			{
   		        wlock_gpio_set(GPIO_LED1, BOOL_LED_OFF);
 			    wlock_enable_warning_event(true);
 			    m_wlock_data.wlock_state = WLOCK_STATE_IDLE;
 			}
-			else if(m_wlock_data.lvd_flag)
+			else if(wlock_in_lvd_state())
 			{
-			    if(m_wlock_data.lvd_rewarning_interval <= 0)
+			    if(m_wlock_data.lvd_rewarning_interval == 0)
 			    {
 				    wlock_gsm_power_on(WLOCK_GSM_POWER_ON_LVD);
 					m_wlock_data.lvd_warning_interval = WLOCK_LVD_WARNING_INTERVAL; 
@@ -721,6 +753,7 @@ uint32_t wlock_init(void)
         return err_code;
     }
 
+#if defined(GPIO_VIBRATE_TRIGGER)	
     /* vibrate trigger */
     config.is_watcher = false;
 	config.hi_accuracy = false;
@@ -731,6 +764,7 @@ uint32_t wlock_init(void)
     {
         return err_code;
     }
+#endif
 
     /* lock picking trigger */
     config.is_watcher = false;
@@ -757,8 +791,19 @@ uint32_t wlock_init(void)
     config.is_watcher = false;
 	config.hi_accuracy = false;
     config.sense = NRF_GPIOTE_POLARITY_HITOLO;
-    config.pull = NRF_GPIO_PIN_NOPULL;
+    config.pull = NRF_GPIO_PIN_PULLUP;
     err_code = nrf_drv_gpiote_in_init(GPIO_GSENSOR_INT, &config, wlock_gpio_event_handler);
+    if (err_code != NRF_SUCCESS)
+    {
+        return err_code;
+    }
+
+    /* key */
+    config.is_watcher = false;
+	config.hi_accuracy = false;
+    config.sense = NRF_GPIOTE_POLARITY_HITOLO;
+    config.pull = NRF_GPIO_PIN_PULLUP;
+    err_code = nrf_drv_gpiote_in_init(GPIO_KEY, &config, wlock_gpio_event_handler);
     if (err_code != NRF_SUCCESS)
     {
         return err_code;
@@ -774,6 +819,25 @@ uint32_t wlock_init(void)
 	nrf_delay_ms(10);
     wlock_gpio_set(GPIO_LED1, BOOL_LED_OFF);
 
+    /* LED2 */
+    NRF_GPIO->PIN_CNF[GPIO_LED2] = (GPIO_PIN_CNF_SENSE_Disabled << GPIO_PIN_CNF_SENSE_Pos) 
+        |(GPIO_PIN_CNF_DRIVE_H0H1 << GPIO_PIN_CNF_DRIVE_Pos)    
+        |(GPIO_PIN_CNF_PULL_Disabled << GPIO_PIN_CNF_PULL_Pos)  
+        |(GPIO_PIN_CNF_INPUT_Disconnect << GPIO_PIN_CNF_INPUT_Pos) 
+        |(GPIO_PIN_CNF_DIR_Output << GPIO_PIN_CNF_DIR_Pos);  
+    wlock_gpio_set(GPIO_LED2, BOOL_LED_ON);
+	nrf_delay_ms(10);
+    wlock_gpio_set(GPIO_LED2, BOOL_LED_OFF);
+
+    /* LED3 */
+    NRF_GPIO->PIN_CNF[GPIO_LED3] = (GPIO_PIN_CNF_SENSE_Disabled << GPIO_PIN_CNF_SENSE_Pos) 
+        |(GPIO_PIN_CNF_DRIVE_H0H1 << GPIO_PIN_CNF_DRIVE_Pos)    
+        |(GPIO_PIN_CNF_PULL_Disabled << GPIO_PIN_CNF_PULL_Pos)  
+        |(GPIO_PIN_CNF_INPUT_Disconnect << GPIO_PIN_CNF_INPUT_Pos) 
+        |(GPIO_PIN_CNF_DIR_Output << GPIO_PIN_CNF_DIR_Pos);  
+    wlock_gpio_set(GPIO_LED3, BOOL_LED_ON);
+	nrf_delay_ms(10);
+    wlock_gpio_set(GPIO_LED3, BOOL_LED_OFF);
 
     /* voice */
     NRF_GPIO->PIN_CNF[GPIO_SPERAKER] = (GPIO_PIN_CNF_SENSE_Disabled << GPIO_PIN_CNF_SENSE_Pos) 
@@ -783,14 +847,6 @@ uint32_t wlock_init(void)
         |(GPIO_PIN_CNF_DIR_Output << GPIO_PIN_CNF_DIR_Pos);  
     wlock_gpio_set(GPIO_SPERAKER, BOOL_SPEAKER_OFF);
 
-    /* infrared power on */
-    NRF_GPIO->PIN_CNF[GPIO_INFRARED_POWER_ON] = (GPIO_PIN_CNF_SENSE_Disabled << GPIO_PIN_CNF_SENSE_Pos) 
-        |(GPIO_PIN_CNF_DRIVE_H0H1 << GPIO_PIN_CNF_DRIVE_Pos)    
-        |(GPIO_PIN_CNF_PULL_Disabled << GPIO_PIN_CNF_PULL_Pos)  
-        |(GPIO_PIN_CNF_INPUT_Disconnect << GPIO_PIN_CNF_INPUT_Pos) 
-        |(GPIO_PIN_CNF_DIR_Output << GPIO_PIN_CNF_DIR_Pos);  
-    wlock_gpio_set(GPIO_INFRARED_POWER_ON, BOOL_INFRARED_POWER_ON);
-	nrf_delay_ms(10);
 
     /* GSM low power indicate */
     NRF_GPIO->PIN_CNF[GPIO_GSM_LOW_POWER_INDICATE] = (GPIO_PIN_CNF_SENSE_Disabled << GPIO_PIN_CNF_SENSE_Pos) 
@@ -819,20 +875,13 @@ uint32_t wlock_init(void)
     wlock_gpio_set(GPIO_GSM_POWER_KEY, BOOL_GSM_PWRKEY_OFF);
 
     memset(&m_wlock_data, 0, sizeof(wlock_data_t));
-
-	if ((wlock_gpio_get(GPIO_LOW_VOLTAGE_DETECT) == BOOL_IS_LVD)
-		&& (wlock_gpio_get(GPIO_CHARGE_STATE) != BOOL_IS_CHR))
-	{
-	    m_wlock_data.lvd_flag = true;
-	}
-	m_wlock_data.aware_flag = true; /* set aware flag whatever bootup reason */
+    m_wlock_data.aware_flag = true;
 	m_wlock_data.wlock_state = WLOCK_STATE_IDLE;
-    nrf_drv_gpiote_in_event_enable(GPIO_CHARGE_STATE, true);
-    nrf_drv_gpiote_in_event_enable(GPIO_INFRARED_TRIGGER, true);
-    nrf_drv_gpiote_in_event_enable(GPIO_VIBRATE_TRIGGER, true);
-    nrf_drv_gpiote_in_event_enable(GPIO_LOCK_PICKING, true);
-    nrf_drv_gpiote_in_event_enable(GPIO_LOW_VOLTAGE_DETECT, true); 
-    nrf_drv_gpiote_in_event_enable(GPIO_GSENSOR_INT, true); 
+    nrf_drv_gpiote_in_event_enable(GPIO_CHARGE_STATE, false);
+    nrf_drv_gpiote_in_event_enable(GPIO_LOW_VOLTAGE_DETECT, false); 
+	wlock_voice_startup();
+   	nrf_delay_us(2000); /* wait for infrared to be stable */
+	wlock_enable_warning_event(true);
 
     err_code =
         app_timer_create(&m_wlock_sec_timer_id, APP_TIMER_MODE_REPEATED, wlock_sec_timer_handler);
