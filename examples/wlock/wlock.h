@@ -28,6 +28,16 @@ typedef enum
 	WLOCK_GSM_POWER_ON_LVD
 } wlock_power_on_cause_t;
 
+typedef enum
+{
+    WLOCK_TEST_MODE_START,
+    WLOCK_TEST_MOTION,
+	WLOCK_TEST_PICKING,
+	WLOCK_TEST_INFRARED,
+	WLOCK_TEST_MODE_END
+} wlock_test_item_t;
+
+
 #define WLOCK_BLE_SCAN_TIMEOUT          3 /* sec */  
 #define WLOCK_BLE_RSSI				  (-60) /* dBm */
 
@@ -59,6 +69,7 @@ typedef enum
 #define BOOL_IS_CHR						1
 #define BOOL_IS_LVD						0
 #define BOOL_IS_ERASE					0
+#define BOOL_IS_KEY_PRESS				0
 
 /* output */
 #define BOOL_LED_ON						1
@@ -67,8 +78,8 @@ typedef enum
 #define BOOL_SPEAKER_OFF 				0
 #define BOOL_INFRARED_POWER_ON 			1
 #define BOOL_INFRARED_POWER_OFF			0
-#define BOOL_GSM_LVD_ON					0
-#define BOOL_GSM_LVD_OFF				1
+#define BOOL_GSM_LVD_ON					1
+#define BOOL_GSM_LVD_OFF				0
 #define BOOL_GSM_PWRON_ON				1
 #define BOOL_GSM_PWRON_OFF				0
 #define BOOL_GSM_PWRKEY_ON				1
@@ -81,12 +92,24 @@ typedef enum
 #define WLOCK_GSM_POWER_KEY_INTERVAL 3
 #define WLOCK_LVD_WARNING_INTERVAL 60
 #define WLOCK_LVD_REWARNING_INTERVAL 7200 /* two hours */
+#define WLOCK_TEST_MODE_TIMEOUT 3600 /* one hour */
+
+#define WLOCK_BLE_CONNECTED_LED 	GPIO_LED3
+#define WLOCK_TEST_MOTION_LED		GPIO_LED1
+#define WLOCK_TEST_INFRARED_LED		GPIO_LED2
+#define WLOCK_TEST_PICKING_LED		GPIO_LED3
 
 typedef struct
 {
 	//app_timer_id_t sec_timer_id;
 	wlock_state_t wlock_state;
 
+    /* test mode */
+    bool in_test_mode_flag;
+	bool test_mode_key_event;
+	wlock_test_item_t test_item;
+    uint32_t test_mode_timeout;
+	
     bool event_gsensor_flag;
 	bool event_infrared_flag;
 	bool event_vibrate_flag;
