@@ -131,7 +131,6 @@ static const ble_gap_scan_params_t m_scan_param =
     SCAN_INTERVAL,
     SCAN_WINDOW,
     WLOCK_BLE_SCAN_TIMEOUT,
-    //0x0000          // No timeout.
 };
 
 /**@brief Connection parameters requested for connection. */

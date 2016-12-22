@@ -454,12 +454,16 @@ static void wlock_voice_warning(void)
 {
 	int i, j, k, m;
 
-	for (m = 0; m < 60; m++)
+	for (m = 0; m < 56; m++)
 	{
 		for (k = 10; k < 60; k++)
 		{
 			for (j = 0; j < 20; j++)
 			{
+			    if (wlock_ble_connected())
+			    {
+			        return;
+			    }
 				wlock_gpio_set(GPIO_SPERAKER, BOOL_SPEAKER_ON);
 				nrf_delay_us(150);
 				wlock_gpio_set(GPIO_SPERAKER, BOOL_SPEAKER_OFF);
@@ -598,41 +602,57 @@ static void wlock_key_event_handler(nrf_drv_gpiote_pin_t pin, nrf_gpiote_polarit
 
 static void wlock_gpio_event_handler(nrf_drv_gpiote_pin_t pin, nrf_gpiote_polarity_t action)
 {
-	switch (pin) {
-	case GPIO_GSENSOR_INT:
-		kxcjk1013_interrupt_release();
-		m_wlock_data.event_gsensor_flag = true;
-		break;
-	case GPIO_INFRARED_TRIGGER:
-		m_wlock_data.event_infrared_flag = true;
-		break;
-#if defined(GPIO_VIBRATE_TRIGGER)	
-	case GPIO_VIBRATE_TRIGGER:
-		m_wlock_data.event_vibrate_flag = true;
-		break;
-#endif
-	case GPIO_LOCK_PICKING:
-		m_wlock_data.event_lock_picking_flag = true;
-		break;
-	}
-
 	if (m_wlock_data.in_test_mode_flag == false)
 	{
-		if (m_wlock_data.aware_flag == false) {
-			m_wlock_data.aware_flag = true;
-			m_wlock_data.warning_filter++;
-		}
-		else if (m_wlock_data.warning_filter >= WLOCK_WARNING_FILTER_COUNT)
-		{
-			m_wlock_data.warning_flag = true;
-		}
-		else
-		{
-			m_wlock_data.warning_filter++;
-		}
+		switch (pin) {
+			case GPIO_GSENSOR_INT:
+				if (m_wlock_data.aware_flag == false) 
+				{
+			    	nrf_delay_ms(2000);
+				}
+				kxcjk1013_interrupt_release();
+			case GPIO_INFRARED_TRIGGER:
+#if defined(GPIO_VIBRATE_TRIGGER)	
+			case GPIO_VIBRATE_TRIGGER:
+#endif
+			if (m_wlock_data.aware_flag == false) {
+				m_wlock_data.aware_flag = true;
+				m_wlock_data.warning_filter++;
+			}
+			else if (m_wlock_data.warning_filter >= WLOCK_WARNING_FILTER_COUNT)
+			{
+				m_wlock_data.warning_flag = true;
+			}
+			else
+			{
+				m_wlock_data.warning_filter++;
+			}
+			break;
+			case GPIO_LOCK_PICKING:
+				m_wlock_data.warning_flag = true;
+			break;
+		}	
 	}
 	else
 	{
+		switch (pin) {
+			case GPIO_GSENSOR_INT:
+				kxcjk1013_interrupt_release();
+				m_wlock_data.event_gsensor_flag = true;
+				break;
+			case GPIO_INFRARED_TRIGGER:
+				m_wlock_data.event_infrared_flag = true;
+				break;
+#if defined(GPIO_VIBRATE_TRIGGER)	
+			case GPIO_VIBRATE_TRIGGER:
+				m_wlock_data.event_vibrate_flag = true;
+				break;
+#endif
+			case GPIO_LOCK_PICKING:
+				m_wlock_data.event_lock_picking_flag = true;
+				break;
+		}
+
 		if (m_wlock_data.event_gsensor_flag || m_wlock_data.event_vibrate_flag)
 		{
 			wlock_gpio_set(WLOCK_TEST_MOTION_LED, BOOL_LED_ON);
@@ -793,6 +813,7 @@ static void wlock_sec_timer_handler(void * p_context)
 		}
 		break;
 	case WLOCK_STATE_WARNING:
+#if 0
 		if (m_wlock_data.warning_interval > 0)
 		{
 			m_wlock_data.warning_interval--;
@@ -809,8 +830,16 @@ static void wlock_sec_timer_handler(void * p_context)
 		else
 		{
 			wlock_enable_warning_event(true);
-			m_wlock_data.wlock_state = WLOCK_STATE_IDLE;
+			m_wlock_data.aware_interval = WLOCK_AWARE_INTERVAL;
+			m_wlock_data.wlock_state = WLOCK_STATE_AWARE;
 		}
+#else
+		wlock_gpio_set(GPIO_GSM_POWER_KEY, BOOL_GSM_PWRKEY_OFF);
+		wlock_gpio_set(GPIO_GSM_POWER_ON, BOOL_GSM_PWRON_OFF);
+		wlock_enable_warning_event(true);
+		m_wlock_data.aware_interval = WLOCK_AWARE_INTERVAL;
+		m_wlock_data.wlock_state = WLOCK_STATE_AWARE;
+#endif
 		break;
 	case WLOCK_STATE_LVD:
 		if (m_wlock_data.lvd_warning_interval > 0)
@@ -1014,7 +1043,7 @@ uint32_t wlock_init(void)
 	}
 	else
 	{
-		nrf_delay_us(2000); /* wait for infrared to be stable */
+		nrf_delay_ms(2000); /* wait for infrared to be stable */
 		nrf_drv_gpiote_in_event_enable(GPIO_INFRARED_TRIGGER, true);
 #if defined(GPIO_VIBRATE_TRIGGER)	
 		nrf_drv_gpiote_in_event_enable(GPIO_VIBRATE_TRIGGER, true);
