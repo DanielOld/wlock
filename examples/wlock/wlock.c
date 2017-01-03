@@ -836,9 +836,8 @@ static void wlock_sec_timer_handler(void * p_context)
 		if (wlock_ble_connected())
 		{
 		    wlock_voice_warning_stop();
-			wlock_enable_warning_event(true);
-			m_wlock_data.aware_interval = WLOCK_AWARE_INTERVAL;
-			m_wlock_data.wlock_state = WLOCK_STATE_AWARE;
+			wlock_enable_warning_event(false);
+			m_wlock_data.wlock_state = WLOCK_STATE_BLE_CONNECTED;
 		}
 		else if (m_wlock_data.warning_interval > 0)
 		{
