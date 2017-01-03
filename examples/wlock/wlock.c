@@ -34,6 +34,8 @@ extern bool twi_master_init(void);
 
 wlock_data_t m_wlock_data;
 APP_TIMER_DEF(m_wlock_sec_timer_id);
+APP_TIMER_DEF(m_wlock_voice_timer_id);
+
 extern void scan_start(void);
 
 /*
@@ -450,27 +452,32 @@ static void wlock_voice_startup(void)
 	}
 }
 
-static void wlock_voice_warning(void)
+static void wlock_voice_warning_start(void)
 {
-	int i, j, k, m;
+	app_timer_start(m_wlock_voice_timer_id, APP_TIMER_TICKS(10, 0), NULL);
+}
 
-	for (m = 0; m < 56; m++)
+static void wlock_voice_warning_stop(void)
+{
+    app_timer_stop(m_wlock_voice_timer_id);
+	nrf_delay_us(150);
+	wlock_gpio_set(GPIO_SPERAKER, BOOL_SPEAKER_OFF);
+}
+
+static void wlock_voice_timer_handler(void * p_context)
+{
+	int i, j, k;
+
+	for (k = 10; k < 60; k++)
 	{
-		for (k = 10; k < 60; k++)
+		for (j = 0; j < 20; j++)
 		{
-			for (j = 0; j < 20; j++)
+			wlock_gpio_set(GPIO_SPERAKER, BOOL_SPEAKER_ON);
+			nrf_delay_us(150);
+			wlock_gpio_set(GPIO_SPERAKER, BOOL_SPEAKER_OFF);
+			for (i = 0; i < k; i++)
 			{
-			    if (wlock_ble_connected())
-			    {
-			        return;
-			    }
-				wlock_gpio_set(GPIO_SPERAKER, BOOL_SPEAKER_ON);
-				nrf_delay_us(150);
-				wlock_gpio_set(GPIO_SPERAKER, BOOL_SPEAKER_OFF);
-				for (i = 0; i < k; i++)
-				{
-					nrf_delay_us(5);
-				}
+				nrf_delay_us(5);
 			}
 		}
 	}
@@ -794,7 +801,7 @@ static void wlock_sec_timer_handler(void * p_context)
 			wlock_gsm_power_on(WLOCK_GSM_POWER_ON_WARNING);
 			m_wlock_data.warning_interval = WLOCK_WARNING_INTERVAL;
 			m_wlock_data.wlock_state = WLOCK_STATE_WARNING;
-			wlock_voice_warning();
+			wlock_voice_warning_start();
 		}
 		else
 		{
@@ -826,8 +833,14 @@ static void wlock_sec_timer_handler(void * p_context)
 		}
 		break;
 	case WLOCK_STATE_WARNING:
-#if 0
-		if (m_wlock_data.warning_interval > 0)
+		if (wlock_ble_connected())
+		{
+		    wlock_voice_warning_stop();
+			wlock_enable_warning_event(true);
+			m_wlock_data.aware_interval = WLOCK_AWARE_INTERVAL;
+			m_wlock_data.wlock_state = WLOCK_STATE_AWARE;
+		}
+		else if (m_wlock_data.warning_interval > 0)
 		{
 			m_wlock_data.warning_interval--;
 			if (m_wlock_data.gsm_power_key_interval > 0)
@@ -842,17 +855,11 @@ static void wlock_sec_timer_handler(void * p_context)
 		}
 		else
 		{
+		    wlock_voice_warning_stop();
 			wlock_enable_warning_event(true);
 			m_wlock_data.aware_interval = WLOCK_AWARE_INTERVAL;
 			m_wlock_data.wlock_state = WLOCK_STATE_AWARE;
 		}
-#else
-		wlock_gpio_set(GPIO_GSM_POWER_KEY, BOOL_GSM_PWRKEY_OFF);
-		wlock_gpio_set(GPIO_GSM_POWER_ON, BOOL_GSM_PWRON_OFF);
-		wlock_enable_warning_event(true);
-		m_wlock_data.aware_interval = WLOCK_AWARE_INTERVAL;
-		m_wlock_data.wlock_state = WLOCK_STATE_AWARE;
-#endif
 		break;
 	case WLOCK_STATE_LVD:
 		if (m_wlock_data.lvd_warning_interval > 0)
@@ -1067,6 +1074,12 @@ uint32_t wlock_init(void)
 	}
 
 	err_code = app_timer_create(&m_wlock_sec_timer_id, APP_TIMER_MODE_REPEATED, wlock_sec_timer_handler);
+	if (err_code != NRF_SUCCESS)
+	{
+		return err_code;
+	}
+
+	err_code = app_timer_create(&m_wlock_voice_timer_id, APP_TIMER_MODE_REPEATED, wlock_voice_timer_handler);
 	if (err_code != NRF_SUCCESS)
 	{
 		return err_code;
