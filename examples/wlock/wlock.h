@@ -70,6 +70,7 @@ typedef enum
 #define BOOL_IS_LVD						0
 #define BOOL_IS_ERASE					0
 #define BOOL_IS_KEY_PRESS				0
+#define BOOL_IS_LOCK_PICKING			0
 
 /* output */
 #define BOOL_LED_ON						1

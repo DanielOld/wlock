@@ -629,7 +629,8 @@ static void wlock_gpio_event_handler(nrf_drv_gpiote_pin_t pin, nrf_gpiote_polari
 			}
 			break;
 			case GPIO_LOCK_PICKING:
-				m_wlock_data.warning_flag = true;
+				m_wlock_data.aware_flag = true;
+//				m_wlock_data.warning_flag = true;
 			break;
 		}	
 	}
@@ -722,6 +723,11 @@ static void wlock_sec_timer_handler(void * p_context)
 			m_wlock_data.wlock_state = WLOCK_STATE_AWARE;
 			wlock_voice_aware();
 		}
+		else if((wlock_gpio_get(GPIO_LOCK_PICKING) == BOOL_IS_LOCK_PICKING))
+		{
+			m_wlock_data.aware_flag = true;
+//			m_wlock_data.warning_flag = true;
+		}
 		else if (wlock_in_charge_state())
 		{
 			m_wlock_data.lvd_warning_interval = 0;
@@ -762,6 +768,11 @@ static void wlock_sec_timer_handler(void * p_context)
 			scan_start();
 			m_wlock_data.wlock_state = WLOCK_STATE_BLE_SCANNING;
 		}
+		else if((wlock_gpio_get(GPIO_LOCK_PICKING) == BOOL_IS_LOCK_PICKING))
+		{
+//			m_wlock_data.aware_flag = true;
+			m_wlock_data.warning_flag = true;
+		}
 		else if (m_wlock_data.aware_interval > 0)
 		{
 			m_wlock_data.aware_interval--;
@@ -794,6 +805,8 @@ static void wlock_sec_timer_handler(void * p_context)
 		if (!wlock_ble_connected())
 		{
 			wlock_gpio_set(GPIO_LED1, BOOL_LED_OFF);
+			scan_start();
+			nrf_delay_ms(3000);
 			wlock_enable_warning_event(true);
 			m_wlock_data.wlock_state = WLOCK_STATE_IDLE;
 		}
