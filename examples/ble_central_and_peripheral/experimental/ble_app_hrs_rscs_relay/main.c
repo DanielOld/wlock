@@ -154,7 +154,7 @@ static ble_db_discovery_t        m_ble_db_discovery_hrs;                        
 //#define PERIPHERAL_ADVERTISING_LED       BSP_LED_2_MASK
 //#define PERIPHERAL_CONNECTED_LED         BSP_LED_3_MASK
 
-#define DEVICE_NAME                      "Wlock"                                    /**< Name of device used for advertising. */
+#define DEVICE_NAME                      "Wlock_v1.05"                                    /**< Name of device used for advertising. */
 #define MANUFACTURER_NAME                "KeepSafe"                      /**< Manufacturer. Will be passed to Device Information Service. */
 
 #define APP_ADV_INTERVAL                 0x0C80                                     /**< The advertising interval (in units of 0.625 ms). This value corresponds to 2 seconds. */

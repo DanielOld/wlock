@@ -835,6 +835,8 @@ static void wlock_sec_timer_handler(void * p_context)
 	case WLOCK_STATE_WARNING:
 		if (wlock_ble_connected())
 		{
+			wlock_gpio_set(GPIO_GSM_POWER_KEY, BOOL_GSM_PWRKEY_OFF);
+			wlock_gpio_set(GPIO_GSM_POWER_ON, BOOL_GSM_PWRON_OFF);
 		    wlock_voice_warning_stop();
 			wlock_enable_warning_event(false);
 			m_wlock_data.wlock_state = WLOCK_STATE_BLE_CONNECTED;
