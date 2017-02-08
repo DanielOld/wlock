@@ -53,10 +53,12 @@
 
 #define IS_SRVC_CHANGED_CHARACT_PRESENT  1                                          /**< Include or not the service_changed characteristic. if not enabled, the server's database cannot be changed for the lifetime of the device*/
 
-#define DEVICE_NAME                      "Wlock_Key"                               /**< Name of device. Will be included in the advertising data. */
+#define DEVICE_NAME                      "Key_v1.01"                               /**< Name of device. Will be included in the advertising data. */
+
 #define MANUFACTURER_NAME                "NordicSemiconductor"                      /**< Manufacturer. Will be passed to Device Information Service. */
-#define APP_ADV_INTERVAL                 300                                        /**< The advertising interval (in units of 0.625 ms. This value corresponds to 25 ms). */
-#define APP_ADV_TIMEOUT_IN_SECONDS       180                                        /**< The advertising timeout in units of seconds. */
+//#define APP_ADV_INTERVAL                 0x0C80                                     /**< The advertising interval (in units of 0.625 ms). This value corresponds to 2 seconds. */
+#define APP_ADV_INTERVAL                 0x0320                                     /**< The advertising interval (in units of 0.625 ms). This value corresponds to 0.5 seconds. */
+#define APP_ADV_TIMEOUT_IN_SECONDS       00                                        /**< No timeout. */
 
 #define APP_TIMER_PRESCALER              0                                          /**< Value of the RTC1 PRESCALER register. */
 #define APP_TIMER_OP_QUEUE_SIZE          4                                          /**< Size of timer operation queues. */
@@ -633,6 +635,7 @@ static void conn_params_init(void)
  *
  * @note This function will not return.
  */
+/*
 static void sleep_mode_enter(void)
 {
 //    uint32_t err_code = bsp_indication_set(BSP_INDICATE_IDLE);
@@ -645,7 +648,7 @@ static void sleep_mode_enter(void)
     // Go to system-off mode (this function will not return; wakeup will cause a reset).
     sd_power_system_off();
 }
-
+*/
 
 /**@brief Function for handling advertising events.
  *
@@ -655,6 +658,8 @@ static void sleep_mode_enter(void)
  */
 static void on_adv_evt(ble_adv_evt_t ble_adv_evt)
 {
+    uint32_t err_code;
+
     switch (ble_adv_evt)
     {
         case BLE_ADV_EVT_FAST:
@@ -662,7 +667,13 @@ static void on_adv_evt(ble_adv_evt_t ble_adv_evt)
 //            APP_ERROR_CHECK(err_code);
             break;
         case BLE_ADV_EVT_IDLE:
-            sleep_mode_enter();
+//            sleep_mode_enter();
+//            break;
+#ifdef __SUPPORT_WLOCK__
+    		m_ble_connected = false;
+#endif
+            err_code = ble_advertising_start(BLE_ADV_MODE_FAST);
+            APP_ERROR_CHECK(err_code);
             break;
         default:
             break;
@@ -698,10 +709,16 @@ static void on_ble_evt(ble_evt_t * p_ble_evt)
             APP_ERROR_CHECK(err_code);
             break;
         case BLE_GAP_EVT_TIMEOUT:
-            if (p_ble_evt->evt.gap_evt.params.timeout.src == BLE_GAP_TIMEOUT_SRC_ADVERTISING)
-            {
-                sleep_mode_enter();
-            }
+//            if (p_ble_evt->evt.gap_evt.params.timeout.src == BLE_GAP_TIMEOUT_SRC_ADVERTISING)
+//            {
+//                sleep_mode_enter();
+//            }
+//            break;
+#ifdef __SUPPORT_WLOCK__
+    		m_ble_connected = false;
+#endif
+            err_code = ble_advertising_start(BLE_ADV_MODE_FAST);
+            APP_ERROR_CHECK(err_code);
             break;
         default:
             // No implementation needed.

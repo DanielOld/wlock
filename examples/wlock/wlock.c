@@ -30,13 +30,12 @@
 
 
 extern bool twi_master_init(void);
+extern void scan_start(void);
 
 
 wlock_data_t m_wlock_data;
 APP_TIMER_DEF(m_wlock_sec_timer_id);
 APP_TIMER_DEF(m_wlock_voice_timer_id);
-
-extern void scan_start(void);
 
 /*
 static void wlock_sleep_mode_enter(void)
@@ -521,11 +520,7 @@ static void wlock_enable_warning_event(bool enable)
 {
 	if (enable)
 	{
-		m_wlock_data.aware_flag = false;
-		m_wlock_data.aware_interval = 0;
-		m_wlock_data.warning_flag = false;
-		m_wlock_data.warning_filter = 0;
-		m_wlock_data.warning_interval = 0;
+		m_wlock_data.event_flag = false;
 		nrf_drv_gpiote_in_event_enable(GPIO_INFRARED_TRIGGER, true);
 #if defined(GPIO_VIBRATE_TRIGGER)	
 		nrf_drv_gpiote_in_event_enable(GPIO_VIBRATE_TRIGGER, true);
@@ -613,31 +608,12 @@ static void wlock_gpio_event_handler(nrf_drv_gpiote_pin_t pin, nrf_gpiote_polari
 	{
 		switch (pin) {
 			case GPIO_GSENSOR_INT:
-				if (m_wlock_data.aware_flag == false) 
-				{
-			    	nrf_delay_ms(2000);
-				}
-				kxcjk1013_interrupt_release();
 			case GPIO_INFRARED_TRIGGER:
 #if defined(GPIO_VIBRATE_TRIGGER)	
 			case GPIO_VIBRATE_TRIGGER:
 #endif
-			if (m_wlock_data.aware_flag == false) {
-				m_wlock_data.aware_flag = true;
-				m_wlock_data.warning_filter++;
-			}
-			else if (m_wlock_data.warning_filter >= WLOCK_WARNING_FILTER_COUNT)
-			{
-				m_wlock_data.warning_flag = true;
-			}
-			else
-			{
-				m_wlock_data.warning_filter++;
-			}
-			break;
 			case GPIO_LOCK_PICKING:
-				m_wlock_data.aware_flag = true;
-//				m_wlock_data.warning_flag = true;
+				m_wlock_data.event_flag = true;
 			break;
 		}	
 	}
@@ -690,8 +666,6 @@ static void wlock_gpio_event_handler(nrf_drv_gpiote_pin_t pin, nrf_gpiote_polari
 }
 static void wlock_sec_timer_handler(void * p_context)
 {
-	static int ble_scanning_timeout = 0;
-
 	if (m_wlock_data.in_test_mode_flag)
 	{
 		if (m_wlock_data.test_mode_timeout > 0)
@@ -723,17 +697,18 @@ static void wlock_sec_timer_handler(void * p_context)
 			wlock_enable_warning_event(false);
 			m_wlock_data.wlock_state = WLOCK_STATE_BLE_CONNECTED;
 		}
-		else if (m_wlock_data.aware_flag)
+		else if (m_wlock_data.event_flag)
 		{
-			/* enter aware state */
-			m_wlock_data.aware_interval = WLOCK_AWARE_INTERVAL;
-			m_wlock_data.wlock_state = WLOCK_STATE_AWARE;
+			/* enter aware nap state */
+			m_wlock_data.aware_nap_interval = WLOCK_AWARE_NAP_INTERVAL;
+			m_wlock_data.wlock_state = WLOCK_STATE_AWARE_NAP;
+			wlock_enable_warning_event(false);
+			scan_start();
 			wlock_voice_aware();
 		}
 		else if((wlock_gpio_get(GPIO_LOCK_PICKING) == BOOL_IS_LOCK_PICKING))
 		{
-			m_wlock_data.aware_flag = true;
-//			m_wlock_data.warning_flag = true;
+			m_wlock_data.event_flag = true;
 		}
 		else if (wlock_in_charge_state())
 		{
@@ -761,24 +736,41 @@ static void wlock_sec_timer_handler(void * p_context)
 			m_wlock_data.lvd_rewarning_interval = 0;
 		}
 		break;
+	case WLOCK_STATE_AWARE_NAP:
+		if (wlock_ble_connected())
+		{
+			wlock_enable_warning_event(false);
+			m_wlock_data.wlock_state = WLOCK_STATE_BLE_CONNECTED;
+		}
+		else if(m_wlock_data.aware_nap_interval > 0)
+		{
+		    m_wlock_data.aware_nap_interval--;
+		}
+		else
+		{
+			m_wlock_data.aware_interval = WLOCK_AWARE_INTERVAL;
+			m_wlock_data.wlock_state = WLOCK_STATE_AWARE;
+			wlock_enable_warning_event(true);
+		}
+		break;
 	case WLOCK_STATE_AWARE:
 		if (wlock_ble_connected())
 		{
 			wlock_enable_warning_event(false);
 			m_wlock_data.wlock_state = WLOCK_STATE_BLE_CONNECTED;
 		}
-		else if (m_wlock_data.warning_flag)
+		else if (m_wlock_data.event_flag)
 		{
 			/* enter ble scanning state */
 			wlock_enable_warning_event(false);
-			ble_scanning_timeout = 0;
-			scan_start();
-			m_wlock_data.wlock_state = WLOCK_STATE_BLE_SCANNING;
+			wlock_gsm_power_on(WLOCK_GSM_POWER_ON_WARNING);
+			m_wlock_data.warning_interval = WLOCK_WARNING_INTERVAL;
+			m_wlock_data.wlock_state = WLOCK_STATE_WARNING;
+			wlock_voice_warning_start();
 		}
 		else if((wlock_gpio_get(GPIO_LOCK_PICKING) == BOOL_IS_LOCK_PICKING))
 		{
-//			m_wlock_data.aware_flag = true;
-			m_wlock_data.warning_flag = true;
+			m_wlock_data.event_flag = true;
 		}
 		else if (m_wlock_data.aware_interval > 0)
 		{
@@ -790,32 +782,12 @@ static void wlock_sec_timer_handler(void * p_context)
 			m_wlock_data.wlock_state = WLOCK_STATE_IDLE;
 		}
 		break;
-	case WLOCK_STATE_BLE_SCANNING:
-		if (wlock_ble_connected())
-		{
-			wlock_enable_warning_event(false);
-			m_wlock_data.wlock_state = WLOCK_STATE_BLE_CONNECTED;
-		}
-		else if (ble_scanning_timeout >= WLOCK_BLE_SCAN_TIMEOUT)
-		{
-			wlock_gsm_power_on(WLOCK_GSM_POWER_ON_WARNING);
-			m_wlock_data.warning_interval = WLOCK_WARNING_INTERVAL;
-			m_wlock_data.wlock_state = WLOCK_STATE_WARNING;
-			wlock_voice_warning_start();
-		}
-		else
-		{
-			ble_scanning_timeout++;
-		}
-		break;
 	case WLOCK_STATE_BLE_CONNECTED:
 		if (!wlock_ble_connected())
 		{
-			wlock_gpio_set(GPIO_LED1, BOOL_LED_OFF);
-			scan_start();
-			nrf_delay_ms(3000);
-			wlock_enable_warning_event(true);
-			m_wlock_data.wlock_state = WLOCK_STATE_IDLE;
+			//ble scan wil be called in function on_ble_central_evt
+			m_wlock_data.wlock_state = WLOCK_STATE_BLE_DISCONNECTED;
+			m_wlock_data.ble_disconnected_interval = WLOCK_BLE_DISCONNECTED_INTERVAL;
 		}
 		else if (wlock_in_lvd_state())
 		{
@@ -830,6 +802,21 @@ static void wlock_sec_timer_handler(void * p_context)
 			{
 				m_wlock_data.lvd_rewarning_interval--;
 			}
+		}
+		break;
+	case WLOCK_STATE_BLE_DISCONNECTED:
+		if (wlock_ble_connected())
+		{
+			m_wlock_data.wlock_state = WLOCK_STATE_BLE_CONNECTED;
+		}
+		else if(m_wlock_data.ble_disconnected_interval > 0)
+		{
+		    m_wlock_data.ble_disconnected_interval--;
+		}
+		else
+		{
+			wlock_enable_warning_event(true);
+			m_wlock_data.wlock_state = WLOCK_STATE_IDLE;
 		}
 		break;
 	case WLOCK_STATE_WARNING:
@@ -858,8 +845,7 @@ static void wlock_sec_timer_handler(void * p_context)
 		{
 		    wlock_voice_warning_stop();
 			wlock_enable_warning_event(true);
-			m_wlock_data.aware_interval = WLOCK_AWARE_INTERVAL;
-			m_wlock_data.wlock_state = WLOCK_STATE_AWARE;
+			m_wlock_data.wlock_state = WLOCK_STATE_IDLE;
 		}
 		break;
 	case WLOCK_STATE_LVD:
@@ -1052,7 +1038,7 @@ uint32_t wlock_init(void)
 	wlock_gpio_set(GPIO_GSM_POWER_KEY, BOOL_GSM_PWRKEY_OFF);
 
 	memset(&m_wlock_data, 0, sizeof(wlock_data_t));
-	m_wlock_data.aware_flag = false;
+	m_wlock_data.event_flag = false;
 	m_wlock_data.wlock_state = WLOCK_STATE_IDLE;
 	nrf_drv_gpiote_in_event_enable(GPIO_CHARGE_STATE, false);
 	nrf_drv_gpiote_in_event_enable(GPIO_LOW_VOLTAGE_DETECT, false);

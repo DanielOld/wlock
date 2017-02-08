@@ -95,6 +95,8 @@
 
 #define SCAN_INTERVAL               0x00A0                             /**< Determines scan interval in units of 0.625 millisecond. */
 #define SCAN_WINDOW                 0x0050                             /**< Determines scan window in units of 0.625 millisecond. */
+//#define SCAN_INTERVAL               80                            /**< Determines scan interval in units of 0.625 millisecond. */
+//#define SCAN_WINDOW                  8                            /**< Determines scan window in units of 0.625 millisecond. */
 #define MIN_CONNECTION_INTERVAL    MSEC_TO_UNITS(500, UNIT_1_25_MS)   /**< Minimum acceptable connection interval (0.5 seconds).  */
 #define MAX_CONNECTION_INTERVAL    MSEC_TO_UNITS(1000, UNIT_1_25_MS)  /**< Maximum acceptable connection interval (1 second). */
 //#define MIN_CONNECTION_INTERVAL    MSEC_TO_UNITS(7.5, UNIT_1_25_MS)   /**< Determines minimum connection interval in millisecond. */
@@ -102,7 +104,7 @@
 #define SLAVE_LATENCY               0                                  /**< Determines slave latency in terms of connection events. */
 #define SUPERVISION_TIMEOUT         MSEC_TO_UNITS(4000, UNIT_10_MS)    /**< Determines supervision time-out in units of 10 milliseconds. */
 
-#define MAX_CONNECTED_CENTRALS      1                                  /**< Maximum number of central applications which can be connected at any time. */
+#define MAX_CONNECTED_CENTRALS      8                                  /**< Maximum number of central applications which can be connected at any time. */
 
 #define UUID16_SIZE                 2                                  /**< Size of a UUID, in bytes. */
 
@@ -130,7 +132,7 @@ static const ble_gap_scan_params_t m_scan_param =
     NULL,           // No whitelist provided.
     SCAN_INTERVAL,
     SCAN_WINDOW,
-    WLOCK_BLE_SCAN_TIMEOUT,
+    WLOCK_BLE_SCAN_TIMEOUT, 
 };
 
 /**@brief Connection parameters requested for connection. */
@@ -154,10 +156,10 @@ static ble_db_discovery_t        m_ble_db_discovery_hrs;                        
 //#define PERIPHERAL_ADVERTISING_LED       BSP_LED_2_MASK
 //#define PERIPHERAL_CONNECTED_LED         BSP_LED_3_MASK
 
-#define DEVICE_NAME                      "Wlock_v1.05"                                    /**< Name of device used for advertising. */
+#define DEVICE_NAME                      "Wlock_v1.06"                                    /**< Name of device used for advertising. */
 #define MANUFACTURER_NAME                "KeepSafe"                      /**< Manufacturer. Will be passed to Device Information Service. */
 
-#define APP_ADV_INTERVAL                 0x0C80                                     /**< The advertising interval (in units of 0.625 ms). This value corresponds to 2 seconds. */
+#define APP_ADV_INTERVAL                 0x0640                                     /**< The advertising interval (in units of 0.625 ms). This value corresponds to 1 seconds. */
 #define APP_ADV_TIMEOUT_IN_SECONDS       00                                        /**< No timeout. */
 
 #define FIRST_CONN_PARAMS_UPDATE_DELAY   APP_TIMER_TICKS(5000, APP_TIMER_PRESCALER) /**< Time from initiating event (connect or start of notification) to first time sd_ble_gap_conn_param_update is called (5 seconds). */
@@ -525,7 +527,12 @@ static void on_ble_central_evt(const ble_evt_t * const p_ble_evt)
                 NRF_LOG_PRINTF("Starting DB discovery for HRS\r\n");
                 err_code = ble_db_discovery_start(&m_ble_db_discovery_hrs, p_gap_evt->conn_handle);
                 APP_ERROR_CHECK(err_code);
-			m_wlock_data.ble_c_connected_flag = true;
+				m_wlock_data.ble_c_connected_flag = true;
+				if (ble_conn_state_n_centrals() < MAX_CONNECTED_CENTRALS)
+            	{
+                	// Resume scanning.
+                	scan_start();
+            	}
             }
 #if 0
             else if(memcmp(&periph_addr_rsc, peer_addr, sizeof(ble_gap_addr_t)) == 0)
@@ -570,6 +577,9 @@ static void on_ble_central_evt(const ble_evt_t * const p_ble_evt)
 
                 m_conn_handle_hrs_c = BLE_CONN_HANDLE_INVALID;
 			    m_wlock_data.ble_c_connected_flag = false;
+				// Start scanning
+                scan_start();
+
             }
 #if 0
             else if(p_gap_evt->conn_handle == m_conn_handle_rscs_c)
@@ -638,12 +648,14 @@ static void on_ble_central_evt(const ble_evt_t * const p_ble_evt)
                  *  we can tell which peer has connected and update its respective connection
                  *  handle. */
                 if ((extracted_uuid      == BLE_UUID_HEART_RATE_SERVICE) &&
-                    (m_conn_handle_hrs_c == BLE_CONN_HANDLE_INVALID) && 
-                    wlock_is_allowed_to_connect(p_gap_evt->params.adv_report.peer_addr.addr, p_gap_evt->params.adv_report.rssi))
-                {
-                    do_connect = true;
-                    memcpy(&periph_addr_hrs, peer_addr, sizeof(ble_gap_addr_t));
-                }
+                    (m_conn_handle_hrs_c == BLE_CONN_HANDLE_INVALID))
+								{
+                    if (wlock_is_allowed_to_connect(p_gap_evt->params.adv_report.peer_addr.addr, p_gap_evt->params.adv_report.rssi))
+                    {
+                        do_connect = true;
+                        memcpy(&periph_addr_hrs, peer_addr, sizeof(ble_gap_addr_t));
+                    }
+								}
 #if 0			
                 else if ((extracted_uuid       == BLE_UUID_RUNNING_SPEED_AND_CADENCE) &&
                          (m_conn_handle_rscs_c == BLE_CONN_HANDLE_INVALID))

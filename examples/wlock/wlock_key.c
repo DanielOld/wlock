@@ -36,17 +36,15 @@ static void wlock_key_gpio_set(nrf_drv_gpiote_pin_t pin, bool state)
 
 static void wlock_key_gpio_event_handler(nrf_drv_gpiote_pin_t pin, nrf_gpiote_polarity_t action)
 {
-    uint32_t err_code;
-
     switch(pin) {
 		case GPIO_KEY:
 		if(m_ble_connected == false)
 		{
-		      err_code = ble_advertising_start(BLE_ADV_MODE_FAST);
-    		  APP_ERROR_CHECK(err_code);
-    	    //wlock_key_gpio_set(GPIO_LED1, BOOL_LED_ON);
-   	    	//nrf_delay_ms(200);
-    	    //wlock_key_gpio_set(GPIO_LED1, BOOL_LED_OFF);
+		    //err_code = ble_advertising_start(BLE_ADV_MODE_FAST);
+    		// APP_ERROR_CHECK(err_code);
+    	    wlock_key_gpio_set(GPIO_LED1, BOOL_LED_ON);
+   	    	nrf_delay_ms(200);
+    	    wlock_key_gpio_set(GPIO_LED1, BOOL_LED_OFF);
 		}
 		else
 		{

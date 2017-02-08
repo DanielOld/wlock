@@ -15,9 +15,10 @@ typedef struct
 typedef enum
 {
     WLOCK_STATE_IDLE,
+	WLOCK_STATE_AWARE_NAP,	
 	WLOCK_STATE_AWARE,
-	WLOCK_STATE_BLE_SCANNING,
 	WLOCK_STATE_BLE_CONNECTED,
+	WLOCK_STATE_BLE_DISCONNECTED,
 	WLOCK_STATE_WARNING,
 	WLOCK_STATE_LVD
 } wlock_state_t;
@@ -38,9 +39,8 @@ typedef enum
 } wlock_test_item_t;
 
 
-#define WLOCK_BLE_SCAN_TIMEOUT          3 /* sec */  
 #define WLOCK_BLE_RSSI				  (-60) /* dBm */
-
+#define WLOCK_BLE_SCAN_TIMEOUT          60 /* sec */  
 /* input GPIO */
 #define GPIO_CHARGE_STATE 				4
 #define GPIO_INFRARED_TRIGGER			16
@@ -87,12 +87,13 @@ typedef enum
 #define BOOL_GSM_PWRKEY_OFF				0
 
 
-#define WLOCK_WARNING_FILTER_COUNT 	1
 #define WLOCK_AWARE_INTERVAL 	60
+#define WLOCK_AWARE_NAP_INTERVAL 3
 #define WLOCK_WARNING_INTERVAL  20
 #define WLOCK_GSM_POWER_KEY_INTERVAL 3
 #define WLOCK_LVD_WARNING_INTERVAL 20
 #define WLOCK_LVD_REWARNING_INTERVAL 7200 /* two hours */
+#define WLOCK_BLE_DISCONNECTED_INTERVAL 5
 #define WLOCK_TEST_MODE_TIMEOUT 3600 /* one hour */
 
 #define WLOCK_BLE_CONNECTED_LED 	GPIO_LED3
@@ -121,17 +122,23 @@ typedef struct
     /* gsm */
 	int32_t gsm_power_key_interval;
 
+	bool event_flag;
+
+	/* aware nap */
+	int32_t aware_nap_interval;
+
     /* aware */
-	bool aware_flag; /* get infrared or vibrate event for the first time */
+	//bool aware_flag; /* get infrared or vibrate event for the first time */
 	int32_t aware_interval;
 
 	/* warning */
-    bool warning_flag; /* infrared and vibrate warning */
-	int32_t warning_filter;   /* filter count for infrared and vibrate*/
+    //bool warning_flag; /* infrared and vibrate warning */
+	//int32_t warning_filter;   /* filter count for infrared and vibrate*/
 	int32_t warning_interval;
 
 	bool ble_c_connected_flag; /*central*/
 	bool ble_p_connected_flag; /*peripheral*/
+	int32_t ble_disconnected_interval;
 } wlock_data_t;
 
 uint32_t wlock_init(void);
