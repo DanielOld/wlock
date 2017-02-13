@@ -53,11 +53,11 @@
 
 #define IS_SRVC_CHANGED_CHARACT_PRESENT  1                                          /**< Include or not the service_changed characteristic. if not enabled, the server's database cannot be changed for the lifetime of the device*/
 
-#define DEVICE_NAME                      "Key_v1.01"                               /**< Name of device. Will be included in the advertising data. */
+#define DEVICE_NAME                      "Key_v1.02"                               /**< Name of device. Will be included in the advertising data. */
 
 #define MANUFACTURER_NAME                "NordicSemiconductor"                      /**< Manufacturer. Will be passed to Device Information Service. */
 //#define APP_ADV_INTERVAL                 0x0C80                                     /**< The advertising interval (in units of 0.625 ms). This value corresponds to 2 seconds. */
-#define APP_ADV_INTERVAL                 0x0320                                     /**< The advertising interval (in units of 0.625 ms). This value corresponds to 0.5 seconds. */
+#define APP_ADV_INTERVAL                 0x0640                                     /**< The advertising interval (in units of 0.625 ms). This value corresponds to 0.5 seconds. */
 #define APP_ADV_TIMEOUT_IN_SECONDS       00                                        /**< No timeout. */
 
 #define APP_TIMER_PRESCALER              0                                          /**< Value of the RTC1 PRESCALER register. */

@@ -94,7 +94,7 @@
 #define SEC_PARAM_MAX_KEY_SIZE      16                                 /**< Maximum encryption key size in octets. */
 
 #define SCAN_INTERVAL               0x00A0                             /**< Determines scan interval in units of 0.625 millisecond. */
-#define SCAN_WINDOW                 0x0050                             /**< Determines scan window in units of 0.625 millisecond. */
+#define SCAN_WINDOW                 0x00A0                             /**< Determines scan window in units of 0.625 millisecond. */
 //#define SCAN_INTERVAL               80                            /**< Determines scan interval in units of 0.625 millisecond. */
 //#define SCAN_WINDOW                  8                            /**< Determines scan window in units of 0.625 millisecond. */
 #define MIN_CONNECTION_INTERVAL    MSEC_TO_UNITS(500, UNIT_1_25_MS)   /**< Minimum acceptable connection interval (0.5 seconds).  */
@@ -156,7 +156,7 @@ static ble_db_discovery_t        m_ble_db_discovery_hrs;                        
 //#define PERIPHERAL_ADVERTISING_LED       BSP_LED_2_MASK
 //#define PERIPHERAL_CONNECTED_LED         BSP_LED_3_MASK
 
-#define DEVICE_NAME                      "Wlock_v1.06"                                    /**< Name of device used for advertising. */
+#define DEVICE_NAME                      "Wlock_v1.07"                                    /**< Name of device used for advertising. */
 #define MANUFACTURER_NAME                "KeepSafe"                      /**< Manufacturer. Will be passed to Device Information Service. */
 
 #define APP_ADV_INTERVAL                 0x0640                                     /**< The advertising interval (in units of 0.625 ms). This value corresponds to 1 seconds. */
@@ -527,12 +527,12 @@ static void on_ble_central_evt(const ble_evt_t * const p_ble_evt)
                 NRF_LOG_PRINTF("Starting DB discovery for HRS\r\n");
                 err_code = ble_db_discovery_start(&m_ble_db_discovery_hrs, p_gap_evt->conn_handle);
                 APP_ERROR_CHECK(err_code);
-				m_wlock_data.ble_c_connected_flag = true;
-				if (ble_conn_state_n_centrals() < MAX_CONNECTED_CENTRALS)
-            	{
-                	// Resume scanning.
-                	scan_start();
-            	}
+								m_wlock_data.ble_c_connected_flag = true;
+//								if (ble_conn_state_n_centrals() < MAX_CONNECTED_CENTRALS)
+//								{
+//										// Resume scanning.
+//										scan_start();
+//								}
             }
 #if 0
             else if(memcmp(&periph_addr_rsc, peer_addr, sizeof(ble_gap_addr_t)) == 0)
