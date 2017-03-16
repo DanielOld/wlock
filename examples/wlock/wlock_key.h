@@ -12,6 +12,7 @@
 #define BOOL_LED_OFF					0
 
 uint32_t wlock_key_init(void);
+void wlock_key_led_proecess(bool connected);
 
 
 #endif /* WLOCK_KEY_H__ */

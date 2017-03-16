@@ -55,9 +55,9 @@
 
 #define DEVICE_NAME                      "Key_v1.02"                               /**< Name of device. Will be included in the advertising data. */
 
-#define MANUFACTURER_NAME                "NordicSemiconductor"                      /**< Manufacturer. Will be passed to Device Information Service. */
+#define MANUFACTURER_NAME                "KeepSafe"                      /**< Manufacturer. Will be passed to Device Information Service. */
 //#define APP_ADV_INTERVAL                 0x0C80                                     /**< The advertising interval (in units of 0.625 ms). This value corresponds to 2 seconds. */
-#define APP_ADV_INTERVAL                 0x0640                                     /**< The advertising interval (in units of 0.625 ms). This value corresponds to 0.5 seconds. */
+#define APP_ADV_INTERVAL                 0x0640                                     /**< The advertising interval (in units of 0.625 ms). This value corresponds to 1 seconds. */
 #define APP_ADV_TIMEOUT_IN_SECONDS       00                                        /**< No timeout. */
 
 #define APP_TIMER_PRESCALER              0                                          /**< Value of the RTC1 PRESCALER register. */
@@ -697,6 +697,7 @@ static void on_ble_evt(ble_evt_t * p_ble_evt)
             m_conn_handle = p_ble_evt->evt.gap_evt.conn_handle;
 #ifdef __SUPPORT_WLOCK__
     		m_ble_connected = true;
+			wlock_key_led_proecess(m_ble_connected);
 #endif
             break;
 
@@ -704,6 +705,7 @@ static void on_ble_evt(ble_evt_t * p_ble_evt)
             m_conn_handle = BLE_CONN_HANDLE_INVALID;
 #ifdef __SUPPORT_WLOCK__
     		m_ble_connected = false;
+			wlock_key_led_proecess(m_ble_connected);
 #endif
             err_code = ble_advertising_start(BLE_ADV_MODE_FAST);
             APP_ERROR_CHECK(err_code);
