@@ -53,7 +53,7 @@
 
 #define IS_SRVC_CHANGED_CHARACT_PRESENT  1                                          /**< Include or not the service_changed characteristic. if not enabled, the server's database cannot be changed for the lifetime of the device*/
 
-#define DEVICE_NAME                      "Key_v1.02"                               /**< Name of device. Will be included in the advertising data. */
+#define DEVICE_NAME                      "Key_v1.03"                               /**< Name of device. Will be included in the advertising data. */
 
 #define MANUFACTURER_NAME                "KeepSafe"                      /**< Manufacturer. Will be passed to Device Information Service. */
 //#define APP_ADV_INTERVAL                 0x0C80                                     /**< The advertising interval (in units of 0.625 ms). This value corresponds to 2 seconds. */

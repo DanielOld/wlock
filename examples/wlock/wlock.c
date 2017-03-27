@@ -1091,12 +1091,13 @@ bool wlock_is_allowed_to_connect(uint8_t const * addr, int8_t rssi)
 	{
 		ret = true;
 	}
-	else if (rssi >= WLOCK_BLE_RSSI)
+	else if ((rssi >= WLOCK_BLE_RSSI) && (wlock_gpio_get(GPIO_KEY) == BOOL_IS_KEY_PRESS))
 	{
 		ret = wlock_endnode_add(node);
 	}
 	return ret;
 }
+
 
 #include "ble_rscs.h"
 extern ble_rscs_t   m_rscs;
