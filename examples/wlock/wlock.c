@@ -22,11 +22,12 @@
 #include "nrf_delay.h"
 #include "ble_advertising.h"
 #include "nrf_sdm.h"
-#include "fds.h"
+//#include "fds.h"
 
 #ifdef __SUPPORT_WLOCK__
 #include "wlock.h"
 #include "kxcjk1013.h"
+#include "wlock_endnode.h"
 
 
 extern bool twi_master_init(void);
@@ -37,340 +38,6 @@ wlock_data_t m_wlock_data;
 APP_TIMER_DEF(m_wlock_sec_timer_id);
 APP_TIMER_DEF(m_wlock_voice_timer_id);
 
-/*
-static void wlock_sleep_mode_enter(void)
-{
-	uint32_t err_code;
-	err_code = sd_power_system_off();
-	APP_ERROR_CHECK(err_code);
-}
-*/
-#if 0
-static void wlock_pstorage_callback_handler(pstorage_handle_t * p_handle,
-	uint8_t             op_code,
-	uint32_t            result,
-	uint8_t           * p_data,
-	uint32_t            data_len)
-{
-	APP_ERROR_CHECK(result);
-}
-
-
-static bool wlock_endnode_load(void)
-{
-	pstorage_handle_t       block_handle;
-	ret_code_t            err_code;
-
-	err_code = pstorage_block_identifier_get(&m_storage_handle, 0, &block_handle);
-	if (err_code == NRF_SUCCESS)
-	{
-		err_code = pstorage_load((uint8_t *)g_endnode_mapping,
-			&block_handle,
-			ENDNODE_MAPPING_SIZE,
-			0);
-	}
-	if (err_code == NRF_SUCCESS)
-	{
-		return true;
-	}
-	else
-	{
-		return false;
-	}
-}
-
-
-
-static bool wlock_endnode_store(void)
-{
-	pstorage_handle_t       block_handle;
-	ret_code_t            err_code;
-
-	err_code = pstorage_block_identifier_get(&m_storage_handle, 0, &block_handle);
-	if (err_code == NRF_SUCCESS)
-	{
-		wlock_endnode_clear();
-
-		err_code = pstorage_store(&block_handle,
-			(uint8_t *)g_endnode_mapping,
-			ENDNODE_MAPPING_SIZE,
-			0);
-	}
-	if (err_code == NRF_SUCCESS)
-	{
-		return true;
-	}
-	else
-	{
-		return false;
-	}
-}
-
-bool wlock_endnode_clear(void)
-{
-	pstorage_handle_t       block_handle;
-	ret_code_t            err_code;
-
-	err_code = pstorage_block_identifier_get(&m_storage_handle, 0, &block_handle);
-	if (err_code == NRF_SUCCESS)
-	{
-
-		//memset(g_endnode_mapping, 0x00, ENDNODE_MAPPING_SIZE);
-		err_code = pstorage_clear(&block_handle, ENDNODE_MAPPING_SIZE);
-	}
-
-	if (err_code == NRF_SUCCESS)
-	{
-		return true;
-	}
-	else
-	{
-		return false;
-	}
-}
-
-static bool wlock_endnode_match(wlock_endnode_t endnode)
-{
-	uint32_t i;
-
-	for (i = 0; i < WLOCK_MAX_ENDNODE; i++)
-	{
-		if (memcmp(&g_endnode_mapping[i], &endnode, sizeof(wlock_endnode_t)) == 0)
-		{
-			return true;
-		}
-	}
-	return false;
-}
-
-static bool wlock_endnode_add(wlock_endnode_t endnode)
-{
-	uint32_t i;
-	uint32_t j;
-	bool ret = false;
-
-	for (i = 0; i < WLOCK_MAX_ENDNODE; i++)
-	{
-		if ((g_endnode_mapping[i].addr[0] == 0xff)
-			&& (g_endnode_mapping[i].addr[1] == 0xff)
-			&& (g_endnode_mapping[i].addr[2] == 0xff)
-			&& (g_endnode_mapping[i].addr[3] == 0xff)
-			&& (g_endnode_mapping[i].addr[4] == 0xff)
-			&& (g_endnode_mapping[i].addr[5] == 0xff))
-		{
-			memcpy(&g_endnode_mapping[i], &endnode, sizeof(wlock_endnode_t));
-			ret = wlock_endnode_store();
-			break;
-		}
-	}
-
-	if (i == WLOCK_MAX_ENDNODE) // replace the oldest one
-	{
-		for (j = 1; j < WLOCK_MAX_ENDNODE; j++)
-		{
-			memcpy(&g_endnode_mapping[j - 1], &g_endnode_mapping[j], sizeof(wlock_endnode_t));
-		}
-		memcpy(&g_endnode_mapping[WLOCK_MAX_ENDNODE - 1], &endnode, sizeof(wlock_endnode_t));
-		ret = wlock_endnode_store();
-	}
-
-	return ret;
-}
-
-bool wlock_endnode_init(bool erase)
-{
-	pstorage_module_param_t param;
-	ret_code_t            err_code;
-	bool ret = false;
-
-	//DM_MUTEX_LOCK(); /* maybe can be used for spi flash */
-	err_code = pstorage_init();
-	APP_ERROR_CHECK(err_code);
-
-	memset(g_endnode_mapping, 0xFF, ENDNODE_MAPPING_SIZE);
-
-	param.block_size = ENDNODE_MAPPING_SIZE;
-	param.block_count = 1;
-	param.cb = wlock_pstorage_callback_handler;
-
-	err_code = pstorage_register(&param, &m_storage_handle);
-
-	if (err_code == NRF_SUCCESS)
-	{
-		if (erase == true)
-		{
-			ret = wlock_endnode_clear();
-		}
-		else
-		{
-			wlock_endnode_load();
-			ret = true;
-		}
-	}
-	return ret;
-}
-#else
-static wlock_endnode_t g_endnode_mapping[WLOCK_MAX_ENDNODE];
-
-#define WLOCK_ENDNODE_INSTANCE_ID 0x3abc
-#define WLOCK_ENDNODE_TYPE_ID 0x7abc
-#define ENDNODE_MAPPING_SIZE (sizeof(wlock_endnode_t)*WLOCK_MAX_ENDNODE)
-#define WLOCK_ENDNODE_DEFAULT_CHAR 0x00
-bool m_endnode_completed = false;
-
-static void wlock_endnode_evt_handler(ret_code_t       result,
-	fds_cmd_id_t     cmd,
-	fds_record_id_t  record_id,
-	fds_record_key_t record_key)
-{
-	if (cmd == FDS_CMD_GC)
-	{
-		m_endnode_completed = true;
-	}
-}
-
-
-static bool wlock_endnode_load(void)
-{
-	fds_find_token_t find_tok;
-	fds_record_desc_t record_desc;
-	fds_record_t record;
-
-	fds_find(WLOCK_ENDNODE_TYPE_ID, WLOCK_ENDNODE_INSTANCE_ID, &record_desc, &find_tok);
-	fds_open(&record_desc, &record);
-	// No need to keep it open, since we are not reading.
-	memcpy(g_endnode_mapping, (wlock_endnode_t*)record.p_data, ENDNODE_MAPPING_SIZE);
-	fds_close(&record_desc);
-	return true;
-}
-
-
-
-static bool wlock_endnode_store(void)
-{
-	fds_record_desc_t   record_desc;
-	fds_record_key_t    record_key;
-	fds_record_chunk_t  chunk;
-	fds_find_token_t find_tok;
-
-	if (fds_find(WLOCK_ENDNODE_TYPE_ID, WLOCK_ENDNODE_INSTANCE_ID,
-		&record_desc, &find_tok) == NRF_SUCCESS)
-	{
-		fds_clear(&record_desc);
-		fds_gc();
-	}
-	chunk.length_words = ENDNODE_MAPPING_SIZE / 4;
-	chunk.p_data = g_endnode_mapping;
-	record_key.instance = WLOCK_ENDNODE_INSTANCE_ID;
-	record_key.type = WLOCK_ENDNODE_TYPE_ID;
-	// Request write
-	fds_write(&record_desc, record_key, 1, &chunk);
-
-	return true;
-}
-
-bool wlock_endnode_clear(void)
-{
-	memset(g_endnode_mapping, WLOCK_ENDNODE_DEFAULT_CHAR, ENDNODE_MAPPING_SIZE);
-	wlock_endnode_store();
-
-	return true;
-}
-
-static bool wlock_endnode_match(wlock_endnode_t endnode)
-{
-	uint32_t i;
-
-	for (i = 0; i < WLOCK_MAX_ENDNODE; i++)
-	{
-		if (memcmp(&g_endnode_mapping[i], &endnode, sizeof(wlock_endnode_t)) == 0)
-		{
-			return true;
-		}
-	}
-	return false;
-}
-
-static bool wlock_endnode_add(wlock_endnode_t endnode)
-{
-	uint32_t i;
-	uint32_t j;
-	bool ret = false;
-
-	for (i = 0; i < WLOCK_MAX_ENDNODE; i++)
-	{
-		if ((g_endnode_mapping[i].addr[0] == WLOCK_ENDNODE_DEFAULT_CHAR)
-			&& (g_endnode_mapping[i].addr[1] == WLOCK_ENDNODE_DEFAULT_CHAR)
-			&& (g_endnode_mapping[i].addr[2] == WLOCK_ENDNODE_DEFAULT_CHAR)
-			&& (g_endnode_mapping[i].addr[3] == WLOCK_ENDNODE_DEFAULT_CHAR)
-			&& (g_endnode_mapping[i].addr[4] == WLOCK_ENDNODE_DEFAULT_CHAR)
-			&& (g_endnode_mapping[i].addr[5] == WLOCK_ENDNODE_DEFAULT_CHAR))
-		{
-			memcpy(&g_endnode_mapping[i], &endnode, sizeof(wlock_endnode_t));
-			ret = wlock_endnode_store();
-			break;
-		}
-	}
-
-	if (i == WLOCK_MAX_ENDNODE) // replace the oldest one
-	{
-		for (j = 1; j < WLOCK_MAX_ENDNODE; j++)
-		{
-			memcpy(&g_endnode_mapping[j - 1], &g_endnode_mapping[j], sizeof(wlock_endnode_t));
-		}
-		memcpy(&g_endnode_mapping[WLOCK_MAX_ENDNODE - 1], &endnode, sizeof(wlock_endnode_t));
-		ret = wlock_endnode_store();
-	}
-
-	return ret;
-}
-
-bool wlock_endnode_init()
-{
-	fds_find_token_t find_tok;
-	fds_record_desc_t record_desc;
-	fds_record_key_t    record_key;
-	fds_record_chunk_t  chunk;
-	ret_code_t retval;
-	bool ret = false;
-	fds_cb_t cb;
-
-	cb = wlock_endnode_evt_handler;
-	retval = fds_register(cb);
-	if (retval != NRF_SUCCESS)
-	{
-		return false;
-	}
-
-	retval = fds_init();
-	if (retval != NRF_SUCCESS)
-	{
-		return false;
-	}
-
-	memset(g_endnode_mapping, WLOCK_ENDNODE_DEFAULT_CHAR, ENDNODE_MAPPING_SIZE);
-
-
-	if (fds_find(WLOCK_ENDNODE_TYPE_ID, WLOCK_ENDNODE_INSTANCE_ID,
-		&record_desc, &find_tok) == NRF_SUCCESS)
-	{
-		ret = wlock_endnode_load();
-
-	}
-	else
-	{
-		chunk.length_words = ENDNODE_MAPPING_SIZE / 4;
-		chunk.p_data = g_endnode_mapping;
-		record_key.instance = WLOCK_ENDNODE_INSTANCE_ID;
-		record_key.type = WLOCK_ENDNODE_TYPE_ID;
-		// Request write
-		fds_write(&record_desc, record_key, 1, &chunk);
-		ret = true;
-	}
-
-	return ret;
-}
-#endif
 static void wlock_gpio_set(nrf_drv_gpiote_pin_t pin, bool state)
 {
 	if (state) {
@@ -570,7 +237,7 @@ static void wlock_test_mode_timer_handler(void)
 		nrf_drv_gpiote_in_event_disable(GPIO_GSENSOR_INT);
 		break;
 	case WLOCK_TEST_MODE_END:
-		nrf_drv_gpiote_in_event_disable(GPIO_KEY);
+		//nrf_drv_gpiote_in_event_disable(GPIO_KEY);
 		wlock_enable_warning_event(true);
 		m_wlock_data.in_test_mode_flag = false;
 		m_wlock_data.test_item = WLOCK_TEST_MODE_START;
@@ -582,24 +249,31 @@ static void wlock_test_mode_timer_handler(void)
 
 static void wlock_key_event_handler(nrf_drv_gpiote_pin_t pin, nrf_gpiote_polarity_t action)
 {
-	nrf_delay_ms(10);
-	if (wlock_gpio_get(GPIO_KEY) == BOOL_IS_KEY_PRESS)
-	{
-		if (m_wlock_data.in_test_mode_flag == false)
+    if(m_wlock_data.in_test_mode_flag == true)
+    {
+		nrf_delay_ms(10);
+		if (wlock_gpio_get(GPIO_KEY) == BOOL_IS_KEY_PRESS)
 		{
-			m_wlock_data.in_test_mode_flag = true;
-		}
-		m_wlock_data.test_item++;
-    	m_wlock_data.test_mode_timeout = WLOCK_TEST_MODE_TIMEOUT;
-    	m_wlock_data.test_mode_key_event = true;
-    	wlock_gpio_set(WLOCK_TEST_MOTION_LED, BOOL_LED_ON);
-    	wlock_gpio_set(WLOCK_TEST_INFRARED_LED, BOOL_LED_ON);
-    	wlock_gpio_set(WLOCK_TEST_PICKING_LED, BOOL_LED_ON);
-    	nrf_delay_ms(100);
-    	wlock_gpio_set(WLOCK_TEST_MOTION_LED, BOOL_LED_OFF);
-    	wlock_gpio_set(WLOCK_TEST_INFRARED_LED, BOOL_LED_OFF);
-    	wlock_gpio_set(WLOCK_TEST_PICKING_LED, BOOL_LED_OFF);
+			if (m_wlock_data.in_test_mode_flag == false)
+			{
+				m_wlock_data.in_test_mode_flag = true;
+			}
+			m_wlock_data.test_item++;
+	    	m_wlock_data.test_mode_timeout = WLOCK_TEST_MODE_TIMEOUT;
+	    	m_wlock_data.test_mode_key_event = true;
+	    	wlock_gpio_set(WLOCK_TEST_MOTION_LED, BOOL_LED_ON);
+	    	wlock_gpio_set(WLOCK_TEST_INFRARED_LED, BOOL_LED_ON);
+	    	wlock_gpio_set(WLOCK_TEST_PICKING_LED, BOOL_LED_ON);
+	    	nrf_delay_ms(100);
+	    	wlock_gpio_set(WLOCK_TEST_MOTION_LED, BOOL_LED_OFF);
+	    	wlock_gpio_set(WLOCK_TEST_INFRARED_LED, BOOL_LED_OFF);
+	    	wlock_gpio_set(WLOCK_TEST_PICKING_LED, BOOL_LED_OFF);
+	    }
     }
+	else
+	{
+		scan_start();
+	}
 }
 
 static void wlock_gpio_event_handler(nrf_drv_gpiote_pin_t pin, nrf_gpiote_polarity_t action)
@@ -680,7 +354,7 @@ static void wlock_sec_timer_handler(void * p_context)
 		}
 		else
 		{
-			nrf_drv_gpiote_in_event_disable(GPIO_KEY);
+			//nrf_drv_gpiote_in_event_disable(GPIO_KEY);
 			wlock_enable_warning_event(true);
 			m_wlock_data.in_test_mode_flag = false;
 			m_wlock_data.test_item = WLOCK_TEST_MODE_START;
@@ -1044,9 +718,10 @@ uint32_t wlock_init(void)
 	nrf_drv_gpiote_in_event_enable(GPIO_LOW_VOLTAGE_DETECT, false);
 	wlock_voice_startup();
 
+	nrf_drv_gpiote_in_event_enable(GPIO_KEY, true);
 	if (wlock_gpio_get(GPIO_KEY) == BOOL_IS_KEY_PRESS)
 	{
-		nrf_drv_gpiote_in_event_enable(GPIO_KEY, true);
+		m_wlock_data.in_test_mode_flag = true;
 	}
 	else
 	{

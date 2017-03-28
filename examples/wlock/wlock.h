@@ -5,13 +5,6 @@
 #include <stdint.h>
 #include <stdbool.h>
 
-#define WLOCK_MAX_ENDNODE				50
-
-typedef struct
-{
-  uint8_t addr[6];       /**< 48-bit address, LSB format. */
-} wlock_endnode_t;
-
 typedef enum
 {
     WLOCK_STATE_IDLE,

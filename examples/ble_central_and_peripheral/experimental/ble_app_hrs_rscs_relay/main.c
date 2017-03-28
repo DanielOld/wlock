@@ -14,8 +14,7 @@
  * Meaning we pass on the values that we receive. By combining a collector part on
  * one end and a sensor part on the other, we show that the s130 can function
  * simultaneously as a central and a peripheral device.
- *
- * In the figure below, the sensor ble_app_hrs connects and interacts with the relay
+ ** In the figure below, the sensor ble_app_hrs connects and interacts with the relay
  * in the same manner it would connect to a heart rate collector. In this case, the Relay
  * application acts as a central.
  *
@@ -104,7 +103,7 @@
 #define SLAVE_LATENCY               0                                  /**< Determines slave latency in terms of connection events. */
 #define SUPERVISION_TIMEOUT         MSEC_TO_UNITS(4000, UNIT_10_MS)    /**< Determines supervision time-out in units of 10 milliseconds. */
 
-#define MAX_CONNECTED_CENTRALS      8                                  /**< Maximum number of central applications which can be connected at any time. */
+#define MAX_CONNECTED_CENTRALS      1                                  /**< Maximum number of central applications which can be connected at any time. */
 
 #define UUID16_SIZE                 2                                  /**< Size of a UUID, in bytes. */
 
@@ -144,11 +143,11 @@ static const ble_gap_conn_params_t m_connection_param =
     (uint16_t)SUPERVISION_TIMEOUT
 };
 
-static ble_hrs_c_t               m_ble_hrs_c;                                       /**< Main structure used by the Heart rate client module. */
+//static ble_hrs_c_t               m_ble_hrs_c;                                       /**< Main structure used by the Heart rate client module. */
 //static ble_rscs_c_t              m_ble_rsc_c;                                       /**< Main structure used by the Running speed and cadence client module. */
-static uint16_t                  m_conn_handle_hrs_c  = BLE_CONN_HANDLE_INVALID;    /**< Connection handle for the HRS central application */
+//static uint16_t                  m_conn_handle_hrs_c  = BLE_CONN_HANDLE_INVALID;    /**< Connection handle for the HRS central application */
 //static uint16_t                  m_conn_handle_rscs_c = BLE_CONN_HANDLE_INVALID;    /**< Connection handle for the RSC central application */
-static ble_db_discovery_t        m_ble_db_discovery_hrs;                            /**< HR service DB structure used by the database discovery module. */
+//static ble_db_discovery_t        m_ble_db_discovery_hrs;                            /**< HR service DB structure used by the database discovery module. */
 //static ble_db_discovery_t        m_ble_db_discovery_rsc;                            /**< RSC service DB structure used by the database discovery module. */
 
 /* Peripheral related. */
@@ -267,7 +266,7 @@ void scan_start(void)
     }
 }
 
-
+#if 0
 /**@brief Function for handling File Data Storage events.
  *
  * @param[in] p_evt  Peer Manager event.
@@ -283,8 +282,9 @@ static void fds_evt_handler(ret_code_t       result,
         NRF_LOG_PRINTF("GC completed\n");
     }
 }
+#endif
 
-
+#if 0
 /**@brief Function for handling Peer Manager events.
  *
  * @param[in] p_evt  Peer Manager event.
@@ -371,8 +371,9 @@ static void pm_evt_handler(pm_evt_t const * p_evt)
             break;
     }
 }
+#endif
 
-
+#if 0
 /**@brief Handles events coming from the Heart Rate central module.
  */
 static void hrs_c_evt_handler(ble_hrs_c_t * p_hrs_c, ble_hrs_c_evt_t * p_hrs_c_evt)
@@ -381,6 +382,7 @@ static void hrs_c_evt_handler(ble_hrs_c_t * p_hrs_c, ble_hrs_c_evt_t * p_hrs_c_e
     {
         case BLE_HRS_C_EVT_DISCOVERY_COMPLETE:
         {
+#if 0			
             ret_code_t err_code;
 
             NRF_LOG_PRINTF("Heart rate service discovered\r\n");
@@ -395,6 +397,7 @@ static void hrs_c_evt_handler(ble_hrs_c_t * p_hrs_c, ble_hrs_c_evt_t * p_hrs_c_e
             // Heart rate service discovered. Enable notification of Heart Rate Measurement.
             err_code = ble_hrs_c_hrm_notif_enable(p_hrs_c);
             APP_ERROR_CHECK(err_code);
+#endif
         } break; // BLE_HRS_C_EVT_DISCOVERY_COMPLETE
 
         case BLE_HRS_C_EVT_HRM_NOTIFICATION:
@@ -422,7 +425,6 @@ static void hrs_c_evt_handler(ble_hrs_c_t * p_hrs_c, ble_hrs_c_evt_t * p_hrs_c_e
     }
 }
 
-#if 0
 /**@brief Handles events coming from  Running Speed and Cadence central module.
  */
 static void rscs_c_evt_handler(ble_rscs_c_t * p_rscs_c, ble_rscs_c_evt_t * p_rscs_c_evt)
@@ -508,7 +510,7 @@ static void on_ble_central_evt(const ble_evt_t * const p_ble_evt)
          *  discovery, update LEDs status and resume scanning if necessary. */
         case BLE_GAP_EVT_CONNECTED:
         {
-            uint32_t err_code;
+            //uint32_t err_code;
 
             // For readability.
             const ble_gap_addr_t * const peer_addr = &p_gap_evt->params.connected.peer_addr;
@@ -522,17 +524,17 @@ static void on_ble_central_evt(const ble_evt_t * const p_ble_evt)
                 // Reset the peer address we had saved.
                 memset(&periph_addr_hrs, 0, sizeof(ble_gap_addr_t));
 
-                m_conn_handle_hrs_c = p_gap_evt->conn_handle;
+                //m_conn_handle_hrs_c = p_gap_evt->conn_handle;
 
-                NRF_LOG_PRINTF("Starting DB discovery for HRS\r\n");
-                err_code = ble_db_discovery_start(&m_ble_db_discovery_hrs, p_gap_evt->conn_handle);
-                APP_ERROR_CHECK(err_code);
-								m_wlock_data.ble_c_connected_flag = true;
-//								if (ble_conn_state_n_centrals() < MAX_CONNECTED_CENTRALS)
-//								{
-//										// Resume scanning.
-//										scan_start();
-//								}
+                //NRF_LOG_PRINTF("Starting DB discovery for HRS\r\n");
+                //err_code = ble_db_discovery_start(&m_ble_db_discovery_hrs, p_gap_evt->conn_handle);
+                //APP_ERROR_CHECK(err_code);
+				m_wlock_data.ble_c_connected_flag = true;
+				if (ble_conn_state_n_centrals() < MAX_CONNECTED_CENTRALS)
+				{
+						// Resume scanning.
+						scan_start();
+				}
             }
 #if 0
             else if(memcmp(&periph_addr_rsc, peer_addr, sizeof(ble_gap_addr_t)) == 0)
@@ -570,18 +572,22 @@ static void on_ble_central_evt(const ble_evt_t * const p_ble_evt)
         {
 //            uint8_t n_centrals;
 
-            if (p_gap_evt->conn_handle == m_conn_handle_hrs_c)
+		if (ble_conn_state_n_centrals() == 0)
+		{
+		    m_wlock_data.ble_c_connected_flag = false;
+		}
+        scan_start();		
+#if 0					
+					if (p_gap_evt->conn_handle == m_conn_handle_hrs_c)
             {
                 NRF_LOG_PRINTF("HRS central disconnected (reason: %d)\r\n",
                        p_gap_evt->params.disconnected.reason);
 
                 m_conn_handle_hrs_c = BLE_CONN_HANDLE_INVALID;
-			    m_wlock_data.ble_c_connected_flag = false;
+
 				// Start scanning
-                scan_start();
 
             }
-#if 0
             else if(p_gap_evt->conn_handle == m_conn_handle_rscs_c)
             {
                 NRF_LOG_PRINTF("RSC central disconnected (reason: %d)\r\n",
@@ -647,9 +653,8 @@ static void on_ble_central_evt(const ble_evt_t * const p_ble_evt)
                  *  offers the same service. We then save the peer address, so that upon connection
                  *  we can tell which peer has connected and update its respective connection
                  *  handle. */
-                if ((extracted_uuid      == BLE_UUID_HEART_RATE_SERVICE) &&
-                    (m_conn_handle_hrs_c == BLE_CONN_HANDLE_INVALID))
-								{
+                if (extracted_uuid == BLE_UUID_HEART_RATE_SERVICE)
+				{
                     if (wlock_is_allowed_to_connect(p_gap_evt->params.adv_report.peer_addr.addr, p_gap_evt->params.adv_report.rssi))
                     {
                         do_connect = true;
@@ -775,7 +780,7 @@ static void ble_evt_dispatch(ble_evt_t * p_ble_evt)
      * Remember to call ble_conn_state_on_ble_evt before calling any ble_conns_state_* functions. */
     ble_conn_state_on_ble_evt(p_ble_evt);
 
-    pm_ble_evt_handler(p_ble_evt);
+    //pm_ble_evt_handler(p_ble_evt);
 
     // The connection handle should really be retrievable for any event type.
     conn_handle = p_ble_evt->evt.gap_evt.conn_handle;
@@ -802,13 +807,12 @@ static void ble_evt_dispatch(ble_evt_t * p_ble_evt)
         {
             on_ble_central_evt(p_ble_evt);
         }
-
+#if 0		
         if (conn_handle == m_conn_handle_hrs_c)
         {
             ble_hrs_c_on_ble_evt(&m_ble_hrs_c, p_ble_evt);
             ble_db_discovery_on_ble_evt(&m_ble_db_discovery_hrs, p_ble_evt);
         }
-#if 0		
         else if (conn_handle == m_conn_handle_rscs_c)
         {
             ble_rscs_c_on_ble_evt(&m_ble_rsc_c, p_ble_evt);
@@ -839,20 +843,19 @@ static void sys_evt_dispatch(uint32_t sys_evt)
     fs_sys_event_handler(sys_evt);
 }
 
-
+#if 0
 /**@brief Heart rate collector initialization.
  */
 static void hrs_c_init(void)
 {
-    uint32_t         err_code;
-    ble_hrs_c_init_t hrs_c_init_obj;
+    //uint32_t         err_code;
+    //ble_hrs_c_init_t hrs_c_init_obj;
 
-    hrs_c_init_obj.evt_handler = hrs_c_evt_handler;
+    //hrs_c_init_obj.evt_handler = hrs_c_evt_handler;
 
-    err_code = ble_hrs_c_init(&m_ble_hrs_c, &hrs_c_init_obj);
-    APP_ERROR_CHECK(err_code);
+    //err_code = ble_hrs_c_init(&m_ble_hrs_c, &hrs_c_init_obj);
+    //APP_ERROR_CHECK(err_code);
 }
-#if 0
 
 /**@brief Heart rate collector initialization.
  */
@@ -902,7 +905,7 @@ static void ble_stack_init(void)
     APP_ERROR_CHECK(err_code);
 }
 
-
+#if 0
 /**@brief Function for the Peer Manager initialization.
  *
  * @param[in] erase_bonds  Indicates whether bonding information should be cleared from
@@ -944,6 +947,7 @@ static void peer_manager_init(bool erase_bonds)
     err_code = fds_register(fds_evt_handler);
     APP_ERROR_CHECK(err_code);
 }
+#endif
 
 #if 0
 /**@brief Function for initializing buttons and leds.
@@ -1137,10 +1141,10 @@ int main(void)
 
     ble_stack_init();
 
-    peer_manager_init(erase_bonds);
+    //peer_manager_init(erase_bonds);
 
     db_discovery_init();
-    hrs_c_init();
+    //hrs_c_init();
     //rscs_c_init();
 
     gap_params_init();
