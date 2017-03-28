@@ -5,7 +5,7 @@
 #include <stdint.h>
 #include <stdbool.h>
 
-#define WLOCK_MAX_ENDNODE				50
+#define WLOCK_MAX_ENDNODE				100
 
 typedef struct
 {
