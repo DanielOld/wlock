@@ -254,10 +254,10 @@ static void wlock_key_event_handler(nrf_drv_gpiote_pin_t pin, nrf_gpiote_polarit
 		nrf_delay_ms(10);
 		if (wlock_gpio_get(GPIO_KEY) == BOOL_IS_KEY_PRESS)
 		{
-			if (m_wlock_data.in_test_mode_flag == false)
-			{
-				m_wlock_data.in_test_mode_flag = true;
-			}
+			//if (m_wlock_data.in_test_mode_flag == false)
+			//{
+			//	m_wlock_data.in_test_mode_flag = true;
+			//}
 			m_wlock_data.test_item++;
 	    	m_wlock_data.test_mode_timeout = WLOCK_TEST_MODE_TIMEOUT;
 	    	m_wlock_data.test_mode_key_event = true;
@@ -718,7 +718,6 @@ uint32_t wlock_init(void)
 	nrf_drv_gpiote_in_event_enable(GPIO_LOW_VOLTAGE_DETECT, false);
 	wlock_voice_startup();
 
-	nrf_drv_gpiote_in_event_enable(GPIO_KEY, true);
 	if (wlock_gpio_get(GPIO_KEY) == BOOL_IS_KEY_PRESS)
 	{
 		m_wlock_data.in_test_mode_flag = true;
@@ -734,6 +733,8 @@ uint32_t wlock_init(void)
 		kxcjk1013_interrupt_release();
 		nrf_drv_gpiote_in_event_enable(GPIO_GSENSOR_INT, true);
 	}
+
+	nrf_drv_gpiote_in_event_enable(GPIO_KEY, true);
 
 	err_code = app_timer_create(&m_wlock_sec_timer_id, APP_TIMER_MODE_REPEATED, wlock_sec_timer_handler);
 	if (err_code != NRF_SUCCESS)
