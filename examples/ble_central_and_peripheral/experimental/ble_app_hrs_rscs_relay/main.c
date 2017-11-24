@@ -155,10 +155,10 @@ static const ble_gap_conn_params_t m_connection_param =
 //#define PERIPHERAL_ADVERTISING_LED       BSP_LED_2_MASK
 //#define PERIPHERAL_CONNECTED_LED         BSP_LED_3_MASK
 
-#define DEVICE_NAME                      "Wlock_v1.09"                                    /**< Name of device used for advertising. */
+#define DEVICE_NAME                      "Wlock_v1.10"                                    /**< Name of device used for advertising. */
 #define MANUFACTURER_NAME                "KeepSafe"                      /**< Manufacturer. Will be passed to Device Information Service. */
 
-#define APP_ADV_INTERVAL                 0x0640                                     /**< The advertising interval (in units of 0.625 ms). This value corresponds to 1 seconds. */
+#define APP_ADV_INTERVAL                 0x0320                                     /**< The advertising interval (in units of 0.625 ms). This value corresponds to 0.5 seconds. */
 #define APP_ADV_TIMEOUT_IN_SECONDS       00                                        /**< No timeout. */
 
 #define FIRST_CONN_PARAMS_UPDATE_DELAY   APP_TIMER_TICKS(5000, APP_TIMER_PRESCALER) /**< Time from initiating event (connect or start of notification) to first time sd_ble_gap_conn_param_update is called (5 seconds). */
